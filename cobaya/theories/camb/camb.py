@@ -589,6 +589,7 @@ class CAMB(BoltzmannBase):
                 if self.external_wa:
                     de = self.provider.get_dark_energy()
                     results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
+                    print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
                 if self.non_linear_sources or self.non_linear_pk:
                     args = {
                         self.translate_param(p): v
