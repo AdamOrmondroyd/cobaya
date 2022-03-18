@@ -148,7 +148,7 @@ best adapts to your needs:
 
 * To use your own version, assuming it's placed under ``/path/to/theories/CAMB``,
   just make sure it is compiled (and that the version on top of which you based your
-  modifications is young enough to have the Python interface implemented).
+  modifications is old enough to have the Python interface implemented.
 
 In the cases above, you **must** specify the path to your CAMB installation in
 the input block for CAMB (otherwise a system-wide CAMB may be used instead):
@@ -217,6 +217,7 @@ class CAMB(BoltzmannBase):
 
     file_base_name = "camb"
     external_primordial_pk: bool
+    external_wa: bool
     camb: Any
 
     def initialize(self):
@@ -264,6 +265,10 @@ class CAMB(BoltzmannBase):
             self.initial_power_args, self.power_params = self._extract_params(
                 power_spectrum.set_params
             )
+        # # put in my own dark energy here
+        # if self.external_wa:
+        #     self.extra_args["dark_energy_model"] = self.camb.dark_energy.DarkEnergyPPF
+        #     self.dark_energy_args, self.dark_params = {}, []
 
         nonlin = self.camb.CAMBparams.make_class_named(
             self.extra_args.get("non_linear_model", self.camb.nonlinear.Halofit),
@@ -521,6 +526,8 @@ class CAMB(BoltzmannBase):
                         "max_l_tensor", self.extra_args.get("lmax")
                     )
                 }
+        if self.external_wa:
+            must_provide["dark_energy"] = {}
         return must_provide
 
     def add_to_redshifts(self, z):
@@ -578,6 +585,10 @@ class CAMB(BoltzmannBase):
                     }
                     args.update(self.initial_power_args)
                     results.Params.InitPower.set_params(**args)
+                # put in dark energy table here
+                if self.external_wa:
+                    de = self.provider.get_dark_energy()
+                    results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
                 if self.non_linear_sources or self.non_linear_pk:
                     args = {
                         self.translate_param(p): v
