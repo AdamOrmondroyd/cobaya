@@ -7,6 +7,7 @@ parameter names) gaussian likelihood.
 import pytest
 from scipy.stats import multivariate_normal
 import numpy as np
+
 # Local
 from cobaya.yaml import yaml_load
 from cobaya.run import run
@@ -34,10 +35,10 @@ def loglike(a, b, c, d, h, i, j):
 
 # Info
 info = {
-    "likelihood":
-        {"test_lik": {"external": loglike, "output_params": ["x", "e"]}},
+    "likelihood": {"test_lik": {"external": loglike, "output_params": ["x", "e"]}},
     "sampler": {"mcmc": {"burn_in": 0, "max_samples": 10}},
-    "params": yaml_load("""
+    "params": yaml_load(
+        """
        # Fixed to number
        a: 0.01
        # Fixed to function, non-explicitly requested as derived
@@ -81,7 +82,10 @@ info = {
        # Multi-layer derived parameter of "2nd order", i.e. depe on another dyn derived
        k:
          derived: "%s"
-    """ % (b_func, c_func, f_func, g_func, h_func, j_func, k_func))}
+    """
+        % (b_func, c_func, f_func, g_func, h_func, j_func, k_func)
+    ),
+}
 
 
 def test_parameterization():
@@ -89,6 +93,7 @@ def test_parameterization():
     products = sampler.products()
     sample = products["sample"]
     from getdist.mcsamples import MCSamplesFromCobaya
+
     gdsample = MCSamplesFromCobaya(updated_info, products["sample"])
     for i, point in sample:
         a = info["params"]["a"]
@@ -102,24 +107,27 @@ def test_parameterization():
         k = get_external_function(info["params"]["k"]["derived"])(f)
         assert np.allclose(
             point[["b", "c", "e", "f", "g", "h", "j", "k"]].to_numpy(np.float64),
-            [b, c, e, f, g, h, j, k])
+            [b, c, e, f, g, h, j, k],
+        )
         # Test for GetDist too (except fixed ones, ignored by GetDist)
-        bcefffg_getdist = [gdsample.samples[i][gdsample.paramNames.list().index(p)]
-                           for p in ["b", "c", "e", "f", "g", "j", "k"]]
+        bcefffg_getdist = [
+            gdsample.samples[i][gdsample.paramNames.list().index(p)]
+            for p in ["b", "c", "e", "f", "g", "j", "k"]
+        ]
         assert np.allclose(bcefffg_getdist, [b, c, e, f, g, j, k])
 
 
 def test_parameterization_dependencies():
     class TestLike(Likelihood):
-        params = {'a': None, 'b': None}
+        params = {"a": None, "b": None}
 
         def get_can_provide_params(self):
-            return ['D']
+            return ["D"]
 
         def logp(self, **params_values):
-            a = params_values['a']
-            b = params_values['b']
-            params_values['_derived']['D'] = -7
+            a = params_values["a"]
+            b = params_values["b"]
+            params_values["_derived"]["D"] = -7
             return a + 100 * b
 
     info_yaml = r"""
@@ -146,15 +154,15 @@ def test_parameterization_dependencies():
     test_info["likelihood"] = {"Like": TestLike}
 
     model = get_model(test_info)
-    assert np.isclose(model.loglike({'bb': 0.5, 'aa': 2})[0], 105)
-    assert np.isclose(model.logposterior({'bb': 0.5, 'aa': 2}).logpriors[1], -49.5)
-    test_info['params']['b'] = {'value': 'lambda a, c, bb: a*c*bb'}
-    like, derived = get_model(test_info).loglike({'bb': 0.5, 'aa': 2})
+    assert np.isclose(model.loglike({"bb": 0.5, "aa": 2})[0], 105)
+    assert np.isclose(model.logposterior({"bb": 0.5, "aa": 2}).logpriors[1], -49.5)
+    test_info["params"]["b"] = {"value": "lambda a, c, bb: a*c*bb"}
+    like, derived = get_model(test_info).loglike({"bb": 0.5, "aa": 2})
     assert np.isclose(like, 630)
     assert derived == [2.5, 5.0, 6.25, -7, -1.5]
-    assert np.isclose(model.logposterior({'bb': 0.5, 'aa': 2}).logpriors[1], -49.5)
-    test_info['params']['aa'] = 2
-    test_info['params']['bb'] = 0.5
+    assert np.isclose(model.logposterior({"bb": 0.5, "aa": 2}).logpriors[1], -49.5)
+    test_info["params"]["aa"] = 2
+    test_info["params"]["bb"] = 0.5
     like, derived = get_model(test_info).loglike()
     assert np.isclose(like, 630)
     assert derived == [2.5, 5.0, 6.25, -7, -1.5]

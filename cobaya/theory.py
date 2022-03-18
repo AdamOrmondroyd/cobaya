@@ -32,9 +32,17 @@ see :doc:`theories_and_dependencies`.
 
 from collections import deque
 from typing import Sequence, Optional, Union, Tuple, Dict, Iterable, Set, Any, List
+
 # Local
-from cobaya.typing import TheoryDictIn, TheoriesDict, InfoDict, ParamValuesDict, \
-    ParamsDict, empty_dict, unset_params
+from cobaya.typing import (
+    TheoryDictIn,
+    TheoriesDict,
+    InfoDict,
+    ParamValuesDict,
+    ParamsDict,
+    empty_dict,
+    unset_params,
+)
 from cobaya.component import CobayaComponent, ComponentCollection
 from cobaya.tools import get_resolved_class, str_to_list
 from cobaya.log import LoggedError, always_stop_exceptions
@@ -56,26 +64,37 @@ class Theory(CobayaComponent):
 
     _states: deque
 
-    def __init__(self, info: TheoryDictIn = empty_dict,
-                 name: Optional[str] = None, timing: Optional[bool] = None,
-                 packages_path: Optional[str] = None,
-                 initialize=True, standalone=True):
+    def __init__(
+        self,
+        info: TheoryDictIn = empty_dict,
+        name: Optional[str] = None,
+        timing: Optional[bool] = None,
+        packages_path: Optional[str] = None,
+        initialize=True,
+        standalone=True,
+    ):
 
         self._measured_speed = None
-        super().__init__(info, name=name, timing=timing,
-                         packages_path=packages_path, initialize=initialize,
-                         standalone=standalone)
+        super().__init__(
+            info,
+            name=name,
+            timing=timing,
+            packages_path=packages_path,
+            initialize=initialize,
+            standalone=standalone,
+        )
 
         # set to Provider instance before calculations
         self.provider: Any = None
         # Generate cache states, to avoid recomputing.
         # Default 3, but can be changed by sampler
         self.set_cache_size(3)
-        self._helpers: Dict[str, 'Theory'] = {}
+        self._helpers: Dict[str, "Theory"] = {}
         self._input_params_extra: Set[str] = set()
 
-    def get_requirements(self) -> Union[InfoDict, Sequence[str],
-                                        Sequence[Tuple[str, InfoDict]]]:
+    def get_requirements(
+        self,
+    ) -> Union[InfoDict, Sequence[str], Sequence[Tuple[str, InfoDict]]]:
         """
         Get a dictionary of requirements (or a list of requirement name, option tuples)
         that are always needed (e.g. must be calculated by a another component
@@ -86,8 +105,9 @@ class Theory(CobayaComponent):
         """
         return str_to_list(getattr(self, "requires", []))
 
-    def must_provide(self, **requirements) -> Union[None, InfoDict, Sequence[str],
-                                                    Sequence[Tuple[str, InfoDict]]]:
+    def must_provide(
+        self, **requirements
+    ) -> Union[None, InfoDict, Sequence[str], Sequence[Tuple[str, InfoDict]]]:
         """
         Function to be called specifying any output products that are needed and hence
         should be calculated by this component depending..
@@ -105,7 +125,8 @@ class Theory(CobayaComponent):
         if hasattr(self, "needs"):
             raise LoggedError(
                 self.log,
-                "The .needs() method has been deprecated in favour of .must_provide()")
+                "The .needs() method has been deprecated in favour of .must_provide()",
+            )
         # END OF DEPRECATION BLOCK
         return None
 
@@ -126,7 +147,7 @@ class Theory(CobayaComponent):
         set).
         """
 
-    def initialize_with_provider(self, provider: 'Provider'):
+    def initialize_with_provider(self, provider: "Provider"):
         """
         Final initialization after parameters, provider and assigned requirements set.
         The provider is used to get the requirements of this theory using provider.get_X()
@@ -184,8 +205,11 @@ class Theory(CobayaComponent):
         """
         params = getattr(self, "params", None)
         if params:
-            return [k for k, v in params.items() if
-                    hasattr(v, 'get') and v.get('derived') is True]
+            return [
+                k
+                for k, v in params.items()
+                if hasattr(v, "get") and v.get("derived") is True
+            ]
         else:
             return []
 
@@ -221,8 +245,13 @@ class Theory(CobayaComponent):
         """
         self._states = deque(maxlen=n)
 
-    def check_cache_and_compute(self, params_values_dict,
-                                dependency_params=None, want_derived=False, cached=True):
+    def check_cache_and_compute(
+        self,
+        params_values_dict,
+        dependency_params=None,
+        want_derived=False,
+        cached=True,
+    ):
         """
         Takes a dictionary of parameter values and computes the products needed by the
         likelihood, or uses the cached value if that exists for these parameters.
@@ -234,24 +263,31 @@ class Theory(CobayaComponent):
 
         if self._input_params_extra:
             params_values_dict.update(
-                zip(self._input_params_extra,
-                    self.provider.get_param(self._input_params_extra)))
+                zip(
+                    self._input_params_extra,
+                    self.provider.get_param(self._input_params_extra),
+                )
+            )
         self.log.debug("Got parameters %r", params_values_dict)
         state = None
         if cached:
             for _state in self._states:
-                if _state["params"] == params_values_dict and \
-                        _state["dependency_params"] == dependency_params \
-                        and (not want_derived or _state["derived"] is not None):
+                if (
+                    _state["params"] == params_values_dict
+                    and _state["dependency_params"] == dependency_params
+                    and (not want_derived or _state["derived"] is not None)
+                ):
                     state = _state
                     self.log.debug("Re-using computed results")
                     self._states.remove(_state)
                     break
         if not state:
             self.log.debug("Computing new state")
-            state = {"params": params_values_dict,
-                     "dependency_params": dependency_params,
-                     "derived": {} if want_derived else None}
+            state = {
+                "params": params_values_dict,
+                "dependency_params": dependency_params,
+                "derived": {} if want_derived else None,
+            }
             if self.timer:
                 self.timer.start()
             try:
@@ -267,7 +303,9 @@ class Theory(CobayaComponent):
                     self.log.debug(
                         "Ignored error at evaluation and assigned 0 likelihood "
                         "(set 'stop_at_error: True' as an option for this component "
-                        "to stop here and print a traceback). Error message: %r", excpt)
+                        "to stop here and print a traceback). Error message: %r",
+                        excpt,
+                    )
                     return False
             if self.timer:
                 self.timer.increment(self.log)
@@ -281,9 +319,12 @@ class Theory(CobayaComponent):
         try:
             return self._current_state
         except AttributeError:
-            raise LoggedError(self.log, "Cannot retrieve calculated quantities: "
-                                        "nothing has been computed yet "
-                                        "(maybe the prior was -infinity?)")
+            raise LoggedError(
+                self.log,
+                "Cannot retrieve calculated quantities: "
+                "nothing has been computed yet "
+                "(maybe the prior was -infinity?)",
+            )
 
     @property
     def current_derived(self) -> ParamValuesDict:
@@ -297,9 +338,11 @@ class Theory(CobayaComponent):
 
     # MARKED FOR DEPRECATION IN v3.1
     def get_current_derived(self):
-        self.log.warning("'Theory.get_current_derived()' method will soon be deprecated "
-                         "in favour of 'Theory.current_derived' attribute. Please, "
-                         "rename your call.")
+        self.log.warning(
+            "'Theory.get_current_derived()' method will soon be deprecated "
+            "in favour of 'Theory.current_derived' attribute. Please, "
+            "rename your call."
+        )
         # BEHAVIOUR TO BE REPLACED BY AN ERROR
         return self.current_derived
 
@@ -315,7 +358,7 @@ class Theory(CobayaComponent):
         """
         return self
 
-    def get_helper_theories(self) -> Dict[str, 'Theory']:
+    def get_helper_theories(self) -> Dict[str, "Theory"]:
         """
         Return dictionary of optional names and helper Theory instances that should be
         used in conjunction with this component. The helpers can be created here
@@ -325,7 +368,7 @@ class Theory(CobayaComponent):
         """
         return {}
 
-    def update_for_helper_theories(self, helpers: Dict[str, 'Theory']):
+    def update_for_helper_theories(self, helpers: Dict[str, "Theory"]):
         self._helpers = helpers
         if helpers:
             components: List[Theory] = list(helpers.values()) + [self]
@@ -338,7 +381,9 @@ class Theory(CobayaComponent):
                                 supported = component.get_can_provide_params()
                             else:
                                 supported = component.get_can_support_params()
-                            setattr(component, attr, [p for p in pars if p in supported])
+                            setattr(
+                                component, attr, [p for p in pars if p in supported]
+                            )
                             pars = [p for p in pars if p not in supported]
                     for component in components:
                         if component.get_allow_agnostic():
@@ -383,30 +428,37 @@ class TheoryCollection(ComponentCollection):
                 else:
                     if "external" in info:
                         theory_class = info["external"]
-                        if not isinstance(theory_class, type) or \
-                                not issubclass(theory_class, Theory):
-                            raise LoggedError(self.log,
-                                              "Theory %s is not a Theory subclass", name)
+                        if not isinstance(theory_class, type) or not issubclass(
+                            theory_class, Theory
+                        ):
+                            raise LoggedError(
+                                self.log, "Theory %s is not a Theory subclass", name
+                            )
                     else:
                         theory_class = get_resolved_class(
-                            name, kind="theory", class_name=info.get("class"))
+                            name, kind="theory", class_name=info.get("class")
+                        )
                     self.add_instance(
-                        name, theory_class(
-                            info, packages_path=packages_path, timing=timing, name=name))
+                        name,
+                        theory_class(
+                            info, packages_path=packages_path, timing=timing, name=name
+                        ),
+                    )
 
     def __getattribute__(self, name):
-        if not name.startswith('_'):
+        if not name.startswith("_"):
             try:
                 return super().__getattribute__(name)
             except AttributeError:
-                self.log.warn("No attribute %s of TheoryCollection. Use model.provider "
-                              "if you want to access computed requests" % name)
+                self.log.warn(
+                    "No attribute %s of TheoryCollection. Use model.provider "
+                    "if you want to access computed requests" % name
+                )
                 pass
         return object.__getattribute__(self, name)
 
 
 class HelperTheory(Theory):
-
     def has_version(self):
         # assume the main component handles all version checking
         return False
@@ -441,8 +493,14 @@ class Provider:
         :return: value of parameter, or list of parameter values
         """
         if not isinstance(param, str):
-            return [(self.params[p] if p in self.params else
-                     self.requirement_providers[p].get_param(p)) for p in param]
+            return [
+                (
+                    self.params[p]
+                    if p in self.params
+                    else self.requirement_providers[p].get_param(p)
+                )
+                for p in param
+            ]
         if param in self.params:
             return self.params[param]
         else:
@@ -452,7 +510,7 @@ class Provider:
         return self.requirement_providers[result_name].get_result(result_name, **kwargs)
 
     def __getattr__(self, name):
-        if name.startswith('get_'):
+        if name.startswith("get_"):
             requirement = name[4:]
             try:
                 return getattr(self.requirement_providers[requirement], name)

@@ -34,12 +34,22 @@ PriorsDict = Dict[str, Union[str, Callable]]
 # 5. Sequence specifying uniform prior range [min, max] and optionally
 #    'ref' mean and standard deviation for starting positions, and optionally
 #    proposal width. Allowed lengths, 2, 4, 5
-ParamInput = Union['ParamDict', None, str, float, Sequence[float]]
+ParamInput = Union["ParamDict", None, str, float, Sequence[float]]
 ParamsDict = Dict[str, ParamInput]
-ExpandedParamsDict = Dict[str, 'ParamDict']
+ExpandedParamsDict = Dict[str, "ParamDict"]
 
-partags = {"prior", "ref", "proposal", "value", "drop",
-           "derived", "latex", "renames", "min", "max"}
+partags = {
+    "prior",
+    "ref",
+    "proposal",
+    "value",
+    "drop",
+    "derived",
+    "latex",
+    "renames",
+    "min",
+    "max",
+}
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict, Literal
@@ -48,18 +58,15 @@ if sys.version_info >= (3, 8):
     ModelBlock = Literal["theory", "likelihood", "prior", "params"]
     Kind = Literal["theory", "likelihood", "sampler"]
 
-
     class SciPyDistDict(TypedDict):
         dist: str
         loc: float
         scale: float
 
-
     class SciPyMinMaxDict(TypedDict, total=False):
         dist: str  # default uniform
         min: float
         max: float
-
 
     class ParamDict(TypedDict, total=False):
         value: Union[float, Callable, str]
@@ -73,14 +80,12 @@ if sys.version_info >= (3, 8):
         min: float  # hard bounds (does not affect prior)
         max: float
 
-
     class ModelDict(TypedDict, total=False):
         theory: TheoriesDict
         likelihood: LikesDict
         prior: PriorsDict
         params: ParamsDict
         auto_params: ParamsDict
-
 
     class PostDict(TypedDict, total=False):
         add: Optional[ModelDict]
@@ -90,7 +95,6 @@ if sys.version_info >= (3, 8):
         skip: Union[None, float, int]
         thin: Optional[int]
         packages_path: Optional[str]
-
 
     class InputDict(ModelDict, total=False):
         sampler: SamplersDict
@@ -106,10 +110,12 @@ if sys.version_info >= (3, 8):
         output: Optional[str]
         version: Optional[Union[str, InfoDict]]
 
+
 else:
     # avoid PyCharm parsing these too...
-    globals().update((k, InfoDict) for k in
-                     ('InputDict', 'ParamDict', 'ModelDict', 'PostDict'))
-    globals()['LiteralFalse'] = bool
-    globals()['Kind'] = str
-    globals()['ModelBlock'] = str
+    globals().update(
+        (k, InfoDict) for k in ("InputDict", "ParamDict", "ModelDict", "PostDict")
+    )
+    globals()["LiteralFalse"] = bool
+    globals()["Kind"] = str
+    globals()["ModelBlock"] = str

@@ -16,8 +16,10 @@ def test_docs_model():
     try:
         os.chdir(docs_src_folder)
         globals_example = {}
-        exec(open(os.path.join(docs_src_folder, "model_create.py")).read(),
-             globals_example)
+        exec(
+            open(os.path.join(docs_src_folder, "model_create.py")).read(),
+            globals_example,
+        )
     finally:
         # Back to the working directory of the tests, just in case
         os.chdir(cwd)

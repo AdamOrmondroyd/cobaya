@@ -24,9 +24,11 @@ _default_symbol = "="
 _default_length = 80
 
 # Cobaya's own bib info
-cobaya_desc = cleandoc(r"""
+cobaya_desc = cleandoc(
+    r"""
 The posterior has been explored/maximized/reweighted using Cobaya \cite{torrado:2020xyz}.
-""")
+"""
+)
 
 cobaya_bib = r"""
 @article{Torrado:2020dgo,
@@ -42,7 +44,9 @@ cobaya_bib = r"""
     pages = "057",
     year = "2021"
 }
-""".lstrip("\n")
+""".lstrip(
+    "\n"
+)
 
 
 def get_desc_component(component, kind, info=None):
@@ -57,8 +61,9 @@ def get_desc_component(component, kind, info=None):
 def get_bib_component(component, kind):
     cls = get_class(component, kind, None_if_not_found=True)
     if cls:
-        lines = ((cls.get_bibtex() or "").lstrip("\n").rstrip("\n")
-                 or "# [no bibliography information found]")
+        lines = (cls.get_bibtex() or "").lstrip("\n").rstrip(
+            "\n"
+        ) or "# [no bibliography information found]"
     else:
         lines = "# [Component '%s.%s' not known.]" % (kind, component)
     return lines + "\n"
@@ -72,7 +77,8 @@ def get_bib_info(*infos):
         descs[kind], bibs[kind] = {}, {}
         for component in components:
             descs[kind][component] = get_desc_component(
-                component, kind, component_infos[component])
+                component, kind, component_infos[component]
+            )
             bibs[kind][component] = get_bib_component(component, kind)
     descs["cobaya"] = {"cobaya": cobaya_desc}
     bibs["cobaya"] = {"cobaya": cobaya_bib}
@@ -84,15 +90,20 @@ def prettyprint_bib(descs, bibs):
     sorted_kinds = [k for k in dump_sort_cosmetic if k in descs]
     sorted_kinds += [k for k in descs if k not in dump_sort_cosmetic]
     txt = ""
-    txt += create_banner(
-        "Descriptions", symbol=_default_symbol, length=_default_length) + "\n"
+    txt += (
+        create_banner("Descriptions", symbol=_default_symbol, length=_default_length)
+        + "\n"
+    )
     for kind in sorted_kinds:
         txt += kind + ":\n\n"
         for component, desc in descs[kind].items():
             txt += " * [%s] %s\n" % (component, desc)
         txt += "\n"
-    txt += "\n" + create_banner(
-        "Bibtex", symbol=_default_symbol, length=_default_length) + "\n"
+    txt += (
+        "\n"
+        + create_banner("Bibtex", symbol=_default_symbol, length=_default_length)
+        + "\n"
+    )
     for kind in sorted_kinds:
         for component, bib in bibs[kind].items():
             txt += "\n### %s " % component + "########################" + "\n\n"
@@ -105,25 +116,40 @@ def bib_script(args=None):
     warn_deprecation()
     # Parse arguments and launch
     import argparse
+
     parser = argparse.ArgumentParser(
         prog="cobaya bib",
-        description="Prints bibliography to be cited for a component or input file.")
-    parser.add_argument("components_or_files", action="store", nargs="+",
-                        metavar="component_name or input_file.yaml",
-                        help="Component(s) or input file(s) whose bib info is requested.")
+        description="Prints bibliography to be cited for a component or input file.",
+    )
+    parser.add_argument(
+        "components_or_files",
+        action="store",
+        nargs="+",
+        metavar="component_name or input_file.yaml",
+        help="Component(s) or input file(s) whose bib info is requested.",
+    )
     kind_opt, kind_opt_ishort = "kind", 0
-    parser.add_argument("-" + kind_opt[kind_opt_ishort], "--" + kind_opt, action="store",
-                        default=None, metavar="component_kind",
-                        help=("If component name given, "
-                              "kind of component whose bib is requested: " +
-                              ", ".join(['%s' % kind for kind in kinds]) + ". " +
-                              "Use only when component name is not unique "
-                              "(it would fail)."))
+    parser.add_argument(
+        "-" + kind_opt[kind_opt_ishort],
+        "--" + kind_opt,
+        action="store",
+        default=None,
+        metavar="component_kind",
+        help=(
+            "If component name given, "
+            "kind of component whose bib is requested: "
+            + ", ".join(["%s" % kind for kind in kinds])
+            + ". "
+            + "Use only when component name is not unique "
+            "(it would fail)."
+        ),
+    )
     arguments = parser.parse_args(args)
     # Case of files
     are_yaml = [
-        (os.path.splitext(f)[1] in Extension.yamls) for f in
-        arguments.components_or_files]
+        (os.path.splitext(f)[1] in Extension.yamls)
+        for f in arguments.components_or_files
+    ]
     if all(are_yaml):
         infos = [load_input(f) for f in arguments.components_or_files]
         print(prettyprint_bib(*get_bib_info(*infos)))
@@ -132,21 +158,28 @@ def bib_script(args=None):
             arguments.kind = arguments.kind.lower()
         for component in arguments.components_or_files:
             try:
-                print(create_banner(
-                    component, symbol=_default_symbol, length=_default_length))
+                print(
+                    create_banner(
+                        component, symbol=_default_symbol, length=_default_length
+                    )
+                )
                 print(get_bib_component(component, arguments.kind))
             except Exception:
                 if not arguments.kind:
-                    print("Specify its kind with '--%s [component_kind]'." % kind_opt +
-                          "(NB: all requested components must have the same kind, "
-                          "or be requested separately).")
+                    print(
+                        "Specify its kind with '--%s [component_kind]'." % kind_opt
+                        + "(NB: all requested components must have the same kind, "
+                        "or be requested separately)."
+                    )
                 print("")
     else:
-        print("Give either a list of input yaml files, "
-              "or of component names (not a mix of them).")
+        print(
+            "Give either a list of input yaml files, "
+            "or of component names (not a mix of them)."
+        )
         return 1
     return
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     bib_script()

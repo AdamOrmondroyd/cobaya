@@ -27,7 +27,7 @@ class InstallableLikelihood(Likelihood):
         opts = cls.get_install_options()
         repo = opts.get("github_repository", None)
         if repo:
-            data_path = repo.split('/')[-1]
+            data_path = repo.split("/")[-1]
         else:
             data_path = opts.get("data_path", cls.__name__)
         return os.path.realpath(os.path.join(path, "data", data_path))
@@ -58,10 +58,15 @@ class InstallableLikelihood(Likelihood):
         repo = opts.get("github_repository", None)
         if repo:
             from cobaya.install import download_github_release
+
             log.info("Downloading %s data..." % repo)
             return download_github_release(
-                os.path.join(path, "data"), repo, opts.get("github_release", "master"),
-                no_progress_bars=no_progress_bars, logger=log)
+                os.path.join(path, "data"),
+                repo,
+                opts.get("github_release", "master"),
+                no_progress_bars=no_progress_bars,
+                logger=log,
+            )
         else:
             full_path = cls.get_path(path)
             if not os.path.exists(full_path):
@@ -71,8 +76,14 @@ class InstallableLikelihood(Likelihood):
             url = opts["download_url"]
             log.info("Downloading likelihood data file: %s...", url)
             from cobaya.install import download_file
-            if not download_file(url, full_path, decompress=True, logger=log,
-                                 no_progress_bars=no_progress_bars):
+
+            if not download_file(
+                url,
+                full_path,
+                decompress=True,
+                logger=log,
+                no_progress_bars=no_progress_bars,
+            ):
                 return False
             log.info("Likelihood data downloaded and uncompressed correctly.")
             return True

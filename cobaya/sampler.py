@@ -82,13 +82,15 @@ def check_sane_info_sampler(info_sampler: SamplersDict):
         list(info_sampler)[0]
     except AttributeError:
         raise LoggedError(
-            __name__, "The sampler block must be a dictionary 'sampler: {options}'.")
+            __name__, "The sampler block must be a dictionary 'sampler: {options}'."
+        )
     if len(info_sampler) > 1:
         raise LoggedError(__name__, "Only one sampler currently supported at a time.")
 
 
-def check_sampler_info(info_old: Optional[SamplersDict],
-                       info_new: SamplersDict, is_resuming=False):
+def check_sampler_info(
+    info_old: Optional[SamplersDict], info_new: SamplersDict, is_resuming=False
+):
     """
     Checks compatibility between the new sampler info and that of a pre-existing run.
 
@@ -114,49 +116,62 @@ def check_sampler_info(info_old: Optional[SamplersDict],
         # Restore some selected old values for some classes
         keep_old = get_preferred_old_values({"sampler": info_old})
         info_new = recursive_update(info_new, keep_old.get("sampler", {}))
-    if not is_equal_info(
-            {"sampler": info_old}, {"sampler": info_new}, strict=False):
+    if not is_equal_info({"sampler": info_old}, {"sampler": info_new}, strict=False):
         if is_resuming:
             raise LoggedError(
-                logger_sampler, "Old and new Sampler information not compatible! "
-                                "Resuming not possible!")
+                logger_sampler,
+                "Old and new Sampler information not compatible! "
+                "Resuming not possible!",
+            )
         else:
             raise LoggedError(
-                logger_sampler, "Found old Sampler information which is not compatible "
-                                "with the new one. Delete the previous output manually, "
-                                "or automatically with either "
-                                "'-f', '--force', 'force: True'")
+                logger_sampler,
+                "Found old Sampler information which is not compatible "
+                "with the new one. Delete the previous output manually, "
+                "or automatically with either "
+                "'-f', '--force', 'force: True'",
+            )
 
 
-def get_sampler(info_sampler: SamplersDict, model: Model, output: Optional[Output] = None,
-                packages_path: Optional[str] = None) -> 'Sampler':
+def get_sampler(
+    info_sampler: SamplersDict,
+    model: Model,
+    output: Optional[Output] = None,
+    packages_path: Optional[str] = None,
+) -> "Sampler":
     assert isinstance(info_sampler, Mapping), (
         "The first argument must be a dictionary with the info needed for the sampler. "
         "If you were trying to pass the name of an input file instead, "
         "load it first with 'cobaya.input.load_input', "
-        "or, if you were passing a yaml string, load it with 'cobaya.yaml.yaml_load'.")
+        "or, if you were passing a yaml string, load it with 'cobaya.yaml.yaml_load'."
+    )
     logger_sampler = get_logger(__name__)
     info_sampler = deepcopy_where_possible(info_sampler)
     if output is None:
         output = OutputDummy()
     # Check and update info
     check_sane_info_sampler(info_sampler)
-    updated_info_sampler = update_info(
-        {"sampler": info_sampler})["sampler"]  # type: ignore
+    updated_info_sampler = update_info({"sampler": info_sampler})[
+        "sampler"
+    ]  # type: ignore
     if is_debug(logger_sampler):
         logger_sampler.debug(
             "Input info updated with defaults (dumped to YAML):\n%s",
-            yaml_dump(updated_info_sampler))
+            yaml_dump(updated_info_sampler),
+        )
     # Get sampler class & check resume/force compatibility
     sampler_name, sampler_class = get_sampler_name_and_class(updated_info_sampler)
     check_sampler_info(
         (output.reload_updated_info(use_cache=True) or {}).get("sampler"),
-        updated_info_sampler, is_resuming=output.is_resuming())
+        updated_info_sampler,
+        is_resuming=output.is_resuming(),
+    )
     # Check if resumable run
     sampler_class.check_force_resume(output, info=updated_info_sampler[sampler_name])
     # Instantiate the sampler
-    sampler_instance = sampler_class(updated_info_sampler[sampler_name], model,
-                                     output, packages_path=packages_path)
+    sampler_instance = sampler_class(
+        updated_info_sampler[sampler_name], model, output, packages_path=packages_path
+    )
     # If output, dump updated
     if output:
         to_dump = model.info()
@@ -223,9 +238,14 @@ class Sampler(CobayaComponent):
         return self._output
 
     # Private methods: just ignore them:
-    def __init__(self, info_sampler: SamplerDict, model: Model,
-                 output=Optional[Output], packages_path: Optional[str] = None,
-                 name: Optional[str] = None):
+    def __init__(
+        self,
+        info_sampler: SamplerDict,
+        model: Model,
+        output=Optional[Output],
+        packages_path: Optional[str] = None,
+        name: Optional[str] = None,
+    ):
         """
         Actual initialization of the class. Loads the default and input information and
         call the custom ``initialize`` method.
@@ -235,11 +255,18 @@ class Sampler(CobayaComponent):
         self._model = model
         self._output = output
         self._updated_info = deepcopy_where_possible(info_sampler)
-        super().__init__(info_sampler, packages_path=packages_path,
-                         name=name, initialize=False, standalone=False)
+        super().__init__(
+            info_sampler,
+            packages_path=packages_path,
+            name=name,
+            initialize=False,
+            standalone=False,
+        )
         if not model.parameterization.sampled_params():
-            self.mpi_warning("No sampled parameters requested! "
-                             "This will fail for non-mock samplers.")
+            self.mpi_warning(
+                "No sampled parameters requested! "
+                "This will fail for non-mock samplers."
+            )
         # Load checkpoint info, if resuming
         if self.output.is_resuming() and not isinstance(self, Minimizer):
             checkpoint_info = None
@@ -249,9 +276,11 @@ class Sampler(CobayaComponent):
 
                     if self.get_name() not in checkpoint_info["sampler"]:
                         raise LoggedError(
-                            self.log, "Checkpoint file found at '%s' "
-                                      "but it corresponds to a different sampler.",
-                            self.checkpoint_filename())
+                            self.log,
+                            "Checkpoint file found at '%s' "
+                            "but it corresponds to a different sampler.",
+                            self.checkpoint_filename(),
+                        )
                 except (IOError, TypeError):
                     pass
             checkpoint_info = mpi.share_mpi(checkpoint_info)
@@ -282,13 +311,15 @@ class Sampler(CobayaComponent):
     def checkpoint_filename(self):
         if self.output:
             return os.path.join(
-                self.output.folder, self.output.prefix + Extension.checkpoint)
+                self.output.folder, self.output.prefix + Extension.checkpoint
+            )
         return None
 
     def progress_filename(self):
         if self.output:
             return os.path.join(
-                self.output.folder, self.output.prefix + Extension.progress)
+                self.output.folder, self.output.prefix + Extension.progress
+            )
         return None
 
     def set_checkpoint_info(self, checkpoint_info):
@@ -297,8 +328,9 @@ class Sampler(CobayaComponent):
         # check if convergence parameters changed, and if so converged=False
         old_info = self.output.reload_updated_info(use_cache=True)
         assert old_info
-        if self.converge_info_changed(old_info["sampler"][self.get_name()],
-                                      self._updated_info):
+        if self.converge_info_changed(
+            old_info["sampler"][self.get_name()], self._updated_info
+        ):
             self.converged = False
 
     def converge_info_changed(self, old_info, new_info):
@@ -338,7 +370,9 @@ class Sampler(CobayaComponent):
             "they were `(updated_info, sampler_products)` and they are now "
             "`(updated_info, sampler)`. You can access the sampler products (the old "
             "return value) as `sampler.products()` and the `Model` used as "
-            "`sampler.model`.")
+            "`sampler.model`.",
+        )
+
     # END OF DEPRECATION BLOCK
 
     @classmethod
@@ -362,9 +396,13 @@ class Sampler(CobayaComponent):
                 if issubclass(cls, CovmatSampler) and info:
                     if regexp.pattern.rstrip("$").endswith(Extension.covmat):
                         covmat_file = info.get("covmat", "")
-                        if (isinstance(covmat_file, str) and covmat_file ==
-                                getattr(regexp.match(covmat_file), "group",
-                                        lambda: None)()):
+                        if (
+                            isinstance(covmat_file, str)
+                            and covmat_file
+                            == getattr(
+                                regexp.match(covmat_file), "group", lambda: None
+                            )()
+                        ):
                             continue
                 output.delete_with_regexp(regexp, root)
 
@@ -381,22 +419,28 @@ class Sampler(CobayaComponent):
             resuming = False
             if output.force:
                 cls.delete_output_files(output, info=info)
-            elif any(find_with_regexp(regexp, root or output.folder) for (regexp, root)
-                     in cls.output_files_regexps(output=output, info=info, minimal=True)):
+            elif any(
+                find_with_regexp(regexp, root or output.folder)
+                for (regexp, root) in cls.output_files_regexps(
+                    output=output, info=info, minimal=True
+                )
+            ):
                 if output.is_resuming():
                     output.log.info("Found an old sample. Resuming.")
                     resuming = True
                 else:
                     raise LoggedError(
-                        output.log, "Delete the previous output manually, automatically "
-                                    "('-%s', '--%s', '%s: True')" % (
-                                        "force"[0], "force", "force") +
-                                    " or request resuming ('-%s', '--%s', '%s: True')" % (
-                                        "resume"[0], "resume", "resume"))
+                        output.log,
+                        "Delete the previous output manually, automatically "
+                        "('-%s', '--%s', '%s: True')" % ("force"[0], "force", "force")
+                        + " or request resuming ('-%s', '--%s', '%s: True')"
+                        % ("resume"[0], "resume", "resume"),
+                    )
             else:
                 if output.is_resuming():
                     output.log.info(
-                        "Did not find an old sample. Cleaning up and starting anew.")
+                        "Did not find an old sample. Cleaning up and starting anew."
+                    )
                 # Clean up old files, and set resuming=False,
                 # regardless of requested value
                 cls.delete_output_files(output, info=info)
@@ -415,6 +459,7 @@ class CovmatSampler(Sampler):
     """
     Parent class for samplers that are initialised with a covariance matrix.
     """
+
     covmat_params: Sequence[str]
     # Amount by which to shrink covmat diagonals when set from priors or reference.
     fallback_covmat_scale: float = 4
@@ -447,50 +492,64 @@ class CovmatSampler(Sampler):
         params_infos = self.model.parameterization.sampled_params_info()
         covmat = np.diag([np.nan] * len(params_infos))
         # Try to generate it automatically
-        self.covmat = getattr(self, 'covmat', None)
+        self.covmat = getattr(self, "covmat", None)
         if isinstance(self.covmat, str) and self.covmat.lower() == "auto":
             params_infos_covmat = deepcopy_where_possible(params_infos)
             for p in list(params_infos_covmat):
                 if p not in (auto_params or []):
                     params_infos_covmat.pop(p, None)
-            auto_covmat = self.model.get_auto_covmat(params_infos_covmat,
-                                                     random_state=self._rng)
+            auto_covmat = self.model.get_auto_covmat(
+                params_infos_covmat, random_state=self._rng
+            )
             if auto_covmat:
                 self.covmat = os.path.join(auto_covmat["folder"], auto_covmat["name"])
-                self.log.info("Covariance matrix selected automatically: %s", self.covmat)
+                self.log.info(
+                    "Covariance matrix selected automatically: %s", self.covmat
+                )
             else:
                 self.covmat = None
-                self.log.info("Could not automatically find a good covmat. "
-                              "Will generate from parameter info (proposal and prior).")
+                self.log.info(
+                    "Could not automatically find a good covmat. "
+                    "Will generate from parameter info (proposal and prior)."
+                )
         # If given, load and test the covariance matrix
         loaded_params: Sequence[str]
         if isinstance(self.covmat, str):
             covmat_pre = "{%s}" % packages_path_input
             if self.covmat.startswith(covmat_pre):
                 self.covmat = self.covmat.format(
-                    **{packages_path_input: self.packages_path}).replace("/", os.sep)
+                    **{packages_path_input: self.packages_path}
+                ).replace("/", os.sep)
             try:
                 with open(self.covmat, "r", encoding="utf-8-sig") as file_covmat:
                     header = file_covmat.readline()
                 loaded_covmat = np.loadtxt(self.covmat)
             except TypeError:
-                raise LoggedError(self.log, "The property 'covmat' must be a file name,"
-                                            "but it's '%s'.", str(self.covmat))
+                raise LoggedError(
+                    self.log,
+                    "The property 'covmat' must be a file name," "but it's '%s'.",
+                    str(self.covmat),
+                )
             except IOError:
                 raise LoggedError(self.log, "Can't open covmat file '%s'.", self.covmat)
             if header[0] != "#":
                 raise LoggedError(
-                    self.log, "The first line of the covmat file '%s' "
-                              "must be one list of parameter names separated by spaces "
-                              "and staring with '#', and the rest must be a square "
-                              "matrix, with one row per line.", self.covmat)
+                    self.log,
+                    "The first line of the covmat file '%s' "
+                    "must be one list of parameter names separated by spaces "
+                    "and staring with '#', and the rest must be a square "
+                    "matrix, with one row per line.",
+                    self.covmat,
+                )
             loaded_params = header.strip("#").strip().split()
         elif hasattr(self.covmat, "__getitem__"):
             if not self.covmat_params:
                 raise LoggedError(
-                    self.log, "If a covariance matrix is passed as a numpy array, "
-                              "you also need to pass the parameters it corresponds to "
-                              "via 'covmat_params: [name1, name2, ...]'.")
+                    self.log,
+                    "If a covariance matrix is passed as a numpy array, "
+                    "you also need to pass the parameters it corresponds to "
+                    "via 'covmat_params: [name1, name2, ...]'.",
+                )
             loaded_params = self.covmat_params
             loaded_covmat = np.array(self.covmat)
         elif self.covmat:
@@ -500,85 +559,128 @@ class CovmatSampler(Sampler):
             if isinstance(self.covmat, str):
                 str_msg = "the header of the covmat file %r" % self.covmat
             if len(loaded_params) != len(set(loaded_params)):
-                duplicated = list(set(
-                    p for p in loaded_params if list(loaded_params).count(p) > 1))
+                duplicated = list(
+                    set(p for p in loaded_params if list(loaded_params).count(p) > 1)
+                )
                 raise LoggedError(
                     self.log,
-                    "Parameter(s) %r appear more than once in %s", duplicated, str_msg)
+                    "Parameter(s) %r appear more than once in %s",
+                    duplicated,
+                    str_msg,
+                )
             if len(loaded_params) != loaded_covmat.shape[0]:
                 raise LoggedError(
-                    self.log, "The number of parameters in %s and the "
-                              "dimensions of the matrix do not agree: %d vs %r",
-                    str_msg, len(loaded_params), loaded_covmat.shape)
-            if not (np.allclose(loaded_covmat.T, loaded_covmat) and
-                    np.all(np.linalg.eigvals(loaded_covmat) > 0)):
+                    self.log,
+                    "The number of parameters in %s and the "
+                    "dimensions of the matrix do not agree: %d vs %r",
+                    str_msg,
+                    len(loaded_params),
+                    loaded_covmat.shape,
+                )
+            if not (
+                np.allclose(loaded_covmat.T, loaded_covmat)
+                and np.all(np.linalg.eigvals(loaded_covmat) > 0)
+            ):
                 str_msg = "passed"
                 if isinstance(self.covmat, str):
                     str_msg = "loaded from %r" % self.covmat
                 raise LoggedError(
-                    self.log, "The covariance matrix %s is not a positive-definite, "
-                              "symmetric square matrix.", str_msg)
+                    self.log,
+                    "The covariance matrix %s is not a positive-definite, "
+                    "symmetric square matrix.",
+                    str_msg,
+                )
             # Fill with parameters in the loaded covmat
-            renames = {p: [p] + str_to_list(v.get("renames") or [])
-                       for p, v in params_infos.items()}
-            indices_used, indices_sampler = zip(*[
-                [loaded_params.index(p),
-                 [list(params_infos).index(q) for q, a in renames.items() if p in a]]
-                for p in loaded_params])
+            renames = {
+                p: [p] + str_to_list(v.get("renames") or [])
+                for p, v in params_infos.items()
+            }
+            indices_used, indices_sampler = zip(
+                *[
+                    [
+                        loaded_params.index(p),
+                        [
+                            list(params_infos).index(q)
+                            for q, a in renames.items()
+                            if p in a
+                        ],
+                    ]
+                    for p in loaded_params
+                ]
+            )
             if not any(indices_sampler):
                 raise LoggedError(
                     self.log,
                     "A proposal covariance matrix has been loaded, but none of its "
                     "parameters are actually sampled here. Maybe a mismatch between"
-                    " parameter names in the covariance matrix and the input file?")
-            indices_used, indices_sampler = zip(*[
-                [i, j] for i, j in zip(indices_used, indices_sampler) if j])
+                    " parameter names in the covariance matrix and the input file?",
+                )
+            indices_used, indices_sampler = zip(
+                *[[i, j] for i, j in zip(indices_used, indices_sampler) if j]
+            )
             if any(len(j) - 1 for j in indices_sampler):
                 first = next(j for j in indices_sampler if len(j) > 1)
                 raise LoggedError(
                     self.log,
                     "The parameters %s have duplicated aliases. Can't assign them an "
                     "element of the covariance matrix unambiguously.",
-                    ", ".join([list(params_infos)[i] for i in first]))
+                    ", ".join([list(params_infos)[i] for i in first]),
+                )
             indices_sampler = tuple(chain(*indices_sampler))
-            covmat[np.ix_(indices_sampler, indices_sampler)] = (
-                loaded_covmat[np.ix_(indices_used, indices_used)])
+            covmat[np.ix_(indices_sampler, indices_sampler)] = loaded_covmat[
+                np.ix_(indices_used, indices_used)
+            ]
             self.log.info(
                 "Covariance matrix loaded for params %r",
-                [list(params_infos)[i] for i in indices_sampler])
+                [list(params_infos)[i] for i in indices_sampler],
+            )
             missing_params = set(params_infos).difference(
-                list(params_infos)[i] for i in indices_sampler)
+                list(params_infos)[i] for i in indices_sampler
+            )
             if missing_params:
                 self.log.info(
                     "Missing proposal covariance for params %r",
-                    [p for p in self.model.parameterization.sampled_params()
-                     if p in missing_params])
+                    [
+                        p
+                        for p in self.model.parameterization.sampled_params()
+                        if p in missing_params
+                    ],
+                )
             else:
                 self.log.info("All parameters' covariance loaded from given covmat.")
         # Fill gaps with "proposal" property, if present, otherwise ref (or prior)
         where_nan = np.isnan(covmat.diagonal())
         if np.any(where_nan):
             covmat[where_nan, where_nan] = np.array(
-                [(info.get("proposal", np.nan) or np.nan) ** 2
-                 for info in params_infos.values()])[where_nan]
+                [
+                    (info.get("proposal", np.nan) or np.nan) ** 2
+                    for info in params_infos.values()
+                ]
+            )[where_nan]
         where_nan2 = np.isnan(covmat.diagonal())
         if np.any(where_nan2):
             # the variances are likely too large for a good proposal, e.g. conditional
             # widths may be much smaller than the marginalized ones.
             # Divide by 4, better to be too small than too large.
-            covmat[where_nan2, where_nan2] = (self.model.prior.reference_variances()
-                                              [where_nan2] / self.fallback_covmat_scale)
+            covmat[where_nan2, where_nan2] = (
+                self.model.prior.reference_variances()[where_nan2]
+                / self.fallback_covmat_scale
+            )
         assert not np.any(np.isnan(covmat))
         return covmat, where_nan
 
     def covmat_filename(self):
         if self.output:
             return os.path.join(
-                self.output.folder, self.output.prefix + Extension.covmat)
+                self.output.folder, self.output.prefix + Extension.covmat
+            )
         return None
 
     def dump_covmat(self, covmat=None):
         if covmat is None:
             covmat = self.covmat
-        np.savetxt(self.covmat_filename(), covmat, header=" ".join(
-            list(self.model.parameterization.sampled_params())))
+        np.savetxt(
+            self.covmat_filename(),
+            covmat,
+            header=" ".join(list(self.model.parameterization.sampled_params())),
+        )

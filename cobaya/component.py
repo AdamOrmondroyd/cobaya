@@ -12,7 +12,7 @@ from cobaya.conventions import packages_path_input
 class Timer:
     def __init__(self):
         self.n = 0
-        self.time_sum = 0.
+        self.time_sum = 0.0
         self._start = None
         self._time_func = getattr(time, "perf_counter", time.time)
         self._first_time = None
@@ -55,16 +55,21 @@ class CobayaComponent(HasLogger, HasDefaults):
     Base class for a theory, likelihood or sampler with associated .yaml parameter file
     that can set attributes.
     """
+
     # The next lists of options apply when comparing existing versus new info at resuming.
     # When defining it for subclasses, redefine append adding this list to new entries.
     _at_resume_prefer_new: List[str] = ["version"]
     _at_resume_prefer_old: List[str] = []
 
-    def __init__(self, info: InfoDictIn = empty_dict,
-                 name: Optional[str] = None,
-                 timing: Optional[bool] = None,
-                 packages_path: Optional[str] = None,
-                 initialize=True, standalone=True):
+    def __init__(
+        self,
+        info: InfoDictIn = empty_dict,
+        name: Optional[str] = None,
+        timing: Optional[bool] = None,
+        packages_path: Optional[str] = None,
+        initialize=True,
+        standalone=True,
+    ):
         if standalone:
             # TODO: would probably be more natural if defaults were always read here
             default_info = self.get_defaults(input_options=info)
@@ -84,7 +89,8 @@ class CobayaComponent(HasLogger, HasDefaults):
                 if k == "path_install":
                     self.log.warning(
                         "*DEPRECATION*: `path_install` will be deprecated "
-                        "in the next version. Please use `packages_path` instead.")
+                        "in the next version. Please use `packages_path` instead."
+                    )
                     setattr(self, packages_path_input, value)
                 # END OF DEPRECATION BLOCK
                 setattr(self, k, value)
@@ -96,10 +102,15 @@ class CobayaComponent(HasLogger, HasDefaults):
             if initialize:
                 self.initialize()
         except AttributeError as e:
-            if '_params' in str(e):
-                raise LoggedError(self.log, "use 'initialize_with_params' if you need to "
-                                            "initialize after input and output parameters"
-                                            " are set (%s, %s)", self, e)
+            if "_params" in str(e):
+                raise LoggedError(
+                    self.log,
+                    "use 'initialize_with_params' if you need to "
+                    "initialize after input and output parameters"
+                    " are set (%s, %s)",
+                    self,
+                    e,
+                )
             raise
 
     def set_timing_on(self, on):
@@ -164,8 +175,10 @@ class CobayaComponent(HasLogger, HasDefaults):
 
     def __exit__(self, exception_type, exception_value, traceback):
         if self.timer and self.timer.n:
-            self.log.info("Average evaluation time for %s: %g s  (%d evaluations)" % (
-                self.get_name(), self.timer.get_time_avg(), self.timer.n_avg()))
+            self.log.info(
+                "Average evaluation time for %s: %g s  (%d evaluations)"
+                % (self.get_name(), self.timer.get_time_avg(), self.timer.n_avg())
+            )
         self.close()
 
 
@@ -188,11 +201,21 @@ class ComponentCollection(dict, HasLogger):
         if timers:
             sep = "\n   "
             self.log.info(
-                "Average computation time:" + sep + sep.join(
-                    ["%s : %g s (%d evaluations, %g s total)" % (
-                        component.get_name(), component.timer.get_time_avg(),
-                        component.timer.n_avg(), component.timer.time_sum)
-                     for component in timers]))
+                "Average computation time:"
+                + sep
+                + sep.join(
+                    [
+                        "%s : %g s (%d evaluations, %g s total)"
+                        % (
+                            component.get_name(),
+                            component.timer.get_time_avg(),
+                            component.timer.n_avg(),
+                            component.timer.time_sum,
+                        )
+                        for component in timers
+                    ]
+                )
+            )
 
     def get_versions(self, add_version_field=False) -> InfoDict:
         """
@@ -203,8 +226,11 @@ class ComponentCollection(dict, HasLogger):
         def format_version(x):
             return {"version": x} if add_version_field else x
 
-        return {component.get_name(): format_version(component.get_version())
-                for component in self.values() if component.has_version()}
+        return {
+            component.get_name(): format_version(component.get_version())
+            for component in self.values()
+            if component.has_version()
+        }
 
     def get_speeds(self, ignore_sub=False) -> InfoDict:
         """
@@ -212,9 +238,12 @@ class ComponentCollection(dict, HasLogger):
         :return: dictionary of versions for all components
         """
         from cobaya.theory import HelperTheory
-        return {component.get_name(): {"speed": component.speed}
-                for component in self.values() if
-                not (ignore_sub and isinstance(component, HelperTheory))}
+
+        return {
+            component.get_name(): {"speed": component.speed}
+            for component in self.values()
+            if not (ignore_sub and isinstance(component, HelperTheory))
+        }
 
     # Python magic for the "with" statement
     def __enter__(self):

@@ -58,25 +58,33 @@ class BoltzmannBase(Theory):
         # Empty list: default to *total matter*: CMB + Baryon + MassiveNu
         vars_pairs = vars_pairs or [2 * ["delta_tot"]]
         if not isinstance(vars_pairs, Iterable):
-            raise LoggedError(self.log, "vars_pairs must be an iterable of pairs "
-                                        "of variable names: got '%r' for %s",
-                              vars_pairs, name)
+            raise LoggedError(
+                self.log,
+                "vars_pairs must be an iterable of pairs "
+                "of variable names: got '%r' for %s",
+                vars_pairs,
+                name,
+            )
         if isinstance(list(vars_pairs)[0], str):
             vars_pairs = [vars_pairs]
         pairs = set()
         for pair in vars_pairs:
             if len(list(pair)) != 2 or not all(isinstance(x, str) for x in pair):
-                raise LoggedError(self.log,
-                                  "Cannot understand vars_pairs '%r' for %s",
-                                  vars_pairs, name)
+                raise LoggedError(
+                    self.log,
+                    "Cannot understand vars_pairs '%r' for %s",
+                    vars_pairs,
+                    name,
+                )
             pairs.add(tuple(sorted(pair)))
         return pairs
 
     def _check_args(self, req, value, vals):
         for par in vals:
             if par not in value:
-                raise LoggedError(self.log, "%s must specify %s in requirements",
-                                  req, par)
+                raise LoggedError(
+                    self.log, "%s must specify %s in requirements", req, par
+                )
 
     def must_provide(self, **requirements):
         r"""
@@ -136,7 +144,9 @@ class BoltzmannBase(Theory):
 
         """
         super().must_provide(**requirements)
-        self._must_provide = self._must_provide or dict.fromkeys(self.output_params or [])
+        self._must_provide = self._must_provide or dict.fromkeys(
+            self.output_params or []
+        )
         # Accumulate the requirements across several calls in a safe way;
         # e.g. take maximum of all values of a requested precision parameter
         for k, v in requirements.items():
@@ -146,27 +156,39 @@ class BoltzmannBase(Theory):
                 v = {cl.lower(): v[cl] for cl in v}  # to lowercase
                 self._must_provide[k] = {
                     cl.lower(): max(current.get(cl.lower(), 0), v.get(cl, 0))
-                    for cl in set(current).union(v)}
+                    for cl in set(current).union(v)
+                }
             elif k == "unlensed_Cl":
                 current = self._must_provide.get(k, {})
                 self._must_provide[k] = {
                     cl.lower(): max(current.get(cl.lower(), 0), v.get(cl, 0))
-                    for cl in set(current).union(v)}
-            elif k == 'sigma_R':
-                self._check_args(k, v, ('z', 'R'))
+                    for cl in set(current).union(v)
+                }
+            elif k == "sigma_R":
+                self._check_args(k, v, ("z", "R"))
                 for pair in self._norm_vars_pairs(v.pop("vars_pairs", []), k):
                     k = ("sigma_R",) + pair
                     current = self._must_provide.get(k, {})
                     self._must_provide[k] = {
-                        "R": np.sort(np.unique(np.concatenate(
-                            (current.get("R", []), np.atleast_1d(v["R"]))))),
-                        "z": np.unique(np.concatenate(
-                            (current.get("z", []), np.atleast_1d(v["z"])))),
-                        "k_max": max(current.get("k_max", 0),
-                                     v.get("k_max", 2 / np.min(v["R"])))}
+                        "R": np.sort(
+                            np.unique(
+                                np.concatenate(
+                                    (current.get("R", []), np.atleast_1d(v["R"]))
+                                )
+                            )
+                        ),
+                        "z": np.unique(
+                            np.concatenate(
+                                (current.get("z", []), np.atleast_1d(v["z"]))
+                            )
+                        ),
+                        "k_max": max(
+                            current.get("k_max", 0), v.get("k_max", 2 / np.min(v["R"]))
+                        ),
+                    }
             elif k in ("Pk_interpolator", "Pk_grid"):
                 # arguments are all identical, collect all in Pk_grid
-                self._check_args(k, v, ('z', 'k_max'))
+                self._check_args(k, v, ("z", "k_max"))
                 redshifts = v.pop("z")
                 k_max = v.pop("k_max")
                 nonlin = v.pop("nonlinear", True)
@@ -178,16 +200,23 @@ class BoltzmannBase(Theory):
                         current = self._must_provide.get(k, {})
                         self._must_provide[k] = dict(
                             nonlinear=nonlinear,
-                            z=np.unique(np.concatenate((current.get("z", []),
-                                                        np.atleast_1d(redshifts)))),
-                            k_max=max(current.get("k_max", 0), k_max), **v)
+                            z=np.unique(
+                                np.concatenate(
+                                    (current.get("z", []), np.atleast_1d(redshifts))
+                                )
+                            ),
+                            k_max=max(current.get("k_max", 0), k_max),
+                            **v
+                        )
             elif k == "source_Cl":
                 if k not in self._must_provide:
                     self._must_provide[k] = {}
                 if "sources" not in v:
                     raise LoggedError(
-                        self.log, "Needs a 'sources' key, containing a dict with every "
-                                  "source name and definition")
+                        self.log,
+                        "Needs a 'sources' key, containing a dict with every "
+                        "source name and definition",
+                    )
                 # Check that no two sources with equal name but diff specification
                 # for source, window in v["sources"].items():
                 #     if source in (getattr(self, "sources", {}) or {}):
@@ -199,12 +228,18 @@ class BoltzmannBase(Theory):
                 #                 "Source %r requested twice with different specification: "
                 #                 "%r vs %r.", window, self.sources[source])
                 self._must_provide[k].update(v)
-            elif k in ["Hubble", "angular_diameter_distance",
-                       "comoving_radial_distance", "sigma8_z", "fsigma8"]:
+            elif k in [
+                "Hubble",
+                "angular_diameter_distance",
+                "comoving_radial_distance",
+                "sigma8_z",
+                "fsigma8",
+            ]:
                 if k not in self._must_provide:
                     self._must_provide[k] = {}
-                self._must_provide[k]["z"] = np.unique(np.concatenate(
-                    (self._must_provide[k].get("z", []), v["z"])))
+                self._must_provide[k]["z"] = np.unique(
+                    np.concatenate((self._must_provide[k].get("z", []), v["z"]))
+                )
             # Extra derived parameters and other unknown stuff (keep capitalization)
             elif v is None:
                 self._must_provide[k] = None
@@ -226,22 +261,30 @@ class BoltzmannBase(Theory):
         common = set(self.input_params).intersection(self.extra_args)
         if common:
             raise LoggedError(
-                self.log, "The following parameters appear both as input parameters and "
-                          "as extra arguments: %s. Please, remove one of the definitions "
-                          "of each.", common)
+                self.log,
+                "The following parameters appear both as input parameters and "
+                "as extra arguments: %s. Please, remove one of the definitions "
+                "of each.",
+                common,
+            )
 
     def _cmb_unit_factor(self, units, T_cmb):
-        units_factors = {"1": 1,
-                         "muK2": T_cmb * 1.e6,
-                         "K2": T_cmb,
-                         "FIRASmuK2": 2.7255e6,
-                         "FIRASK2": 2.7255
-                         }
+        units_factors = {
+            "1": 1,
+            "muK2": T_cmb * 1.0e6,
+            "K2": T_cmb,
+            "FIRASmuK2": 2.7255e6,
+            "FIRASK2": 2.7255,
+        }
         try:
             return units_factors[units]
         except KeyError:
-            raise LoggedError(self.log, "Units '%s' not recognized. Use one of %s.",
-                              units, list(units_factors))
+            raise LoggedError(
+                self.log,
+                "Units '%s' not recognized. Use one of %s.",
+                units,
+                list(units_factors),
+            )
 
     @abstract
     def get_Cl(self, ell_factor=False, units="FIRASmuK2"):
@@ -285,8 +328,11 @@ class BoltzmannBase(Theory):
             return self._get_z_dependent("Hubble", z) * H_units_conv_factor[units]
         except KeyError:
             raise LoggedError(
-                self.log, "Units not known for H: '%s'. Try instead one of %r.",
-                units, list(H_units_conv_factor))
+                self.log,
+                "Units not known for H: '%s'. Try instead one of %r.",
+                units,
+                list(H_units_conv_factor),
+            )
 
     def get_angular_diameter_distance(self, z):
         r"""
@@ -308,8 +354,9 @@ class BoltzmannBase(Theory):
         """
         return self._get_z_dependent("comoving_radial_distance", z)
 
-    def get_Pk_interpolator(self, var_pair=("delta_tot", "delta_tot"), nonlinear=True,
-                            extrap_kmax=None):
+    def get_Pk_interpolator(
+        self, var_pair=("delta_tot", "delta_tot"), nonlinear=True, extrap_kmax=None
+    ):
         r"""
         Get a :math:`P(z,k)` bicubic interpolation object
         (:class:`PowerSpectrumInterpolator`).
@@ -339,11 +386,14 @@ class BoltzmannBase(Theory):
         if log_p:
             pk = np.log(sign * pk)
         elif extrap_kmax > k[-1]:
-            raise LoggedError(self.log,
-                              'Cannot do log extrapolation with zero-crossing pk '
-                              'for %s, %s' % var_pair)
-        result = PowerSpectrumInterpolator(z, k, pk, logP=log_p, logsign=sign,
-                                           extrap_kmax=extrap_kmax)
+            raise LoggedError(
+                self.log,
+                "Cannot do log extrapolation with zero-crossing pk "
+                "for %s, %s" % var_pair,
+            )
+        result = PowerSpectrumInterpolator(
+            z, k, pk, logP=log_p, logsign=sign, extrap_kmax=extrap_kmax
+        )
         self.current_state[key] = result
         return result
 
@@ -365,12 +415,15 @@ class BoltzmannBase(Theory):
         """
         try:
             return self.current_state[
-                ("Pk_grid", bool(nonlinear)) + tuple(sorted(var_pair))]
+                ("Pk_grid", bool(nonlinear)) + tuple(sorted(var_pair))
+            ]
         except KeyError:
             if ("Pk_grid", False) + tuple(sorted(var_pair)) in self.current_state:
-                raise LoggedError(self.log,
-                                  "Getting non-linear matter power but 'nonlinear' "
-                                  "not specified in requirements")
+                raise LoggedError(
+                    self.log,
+                    "Getting non-linear matter power but 'nonlinear' "
+                    "not specified in requirements",
+                )
             raise LoggedError(self.log, "Matter power %s, %s not computed" % var_pair)
 
     def get_sigma_R(self, var_pair=("delta_tot", "delta_tot")):
@@ -432,8 +485,10 @@ class BoltzmannBase(Theory):
         ``params_info`` should contain preferably the slow parameters only.
         """
         from cobaya.cosmo_input import get_best_covmat_ext
-        return get_best_covmat_ext(self.packages_path, params_info, likes_info,
-                                   random_state)
+
+        return get_best_covmat_ext(
+            self.packages_path, params_info, likes_info, random_state
+        )
 
 
 class PowerSpectrumInterpolator(RectBivariateSpline):
@@ -459,9 +514,11 @@ class PowerSpectrumInterpolator(RectBivariateSpline):
         #  Check order
         z, k = (np.atleast_1d(x) for x in [z, k])
         if len(z) < 4:
-            raise ValueError('Require at least four redshifts for Pk interpolation.'
-                             'Consider using Pk_grid if you just need a a small number'
-                             'of specific redshifts (doing 1D splines in k yourself).')
+            raise ValueError(
+                "Require at least four redshifts for Pk interpolation."
+                "Consider using Pk_grid if you just need a a small number"
+                "of specific redshifts (doing 1D splines in k yourself)."
+            )
         i_z = np.argsort(z)
         i_k = np.argsort(k)
         self.logsign = logsign
@@ -472,10 +529,14 @@ class PowerSpectrumInterpolator(RectBivariateSpline):
         # Continue until extrap_kmax using a (log,log)-linear extrapolation
         if extrap_kmax and extrap_kmax > self.kmax:
             if not logP:
-                raise ValueError('extrap_kmax must use logP')
+                raise ValueError("extrap_kmax must use logP")
             logk = np.hstack(
-                [logk, np.log(self.kmax) * 0.1 + np.log(extrap_kmax) * 0.9,
-                 np.log(extrap_kmax)])
+                [
+                    logk,
+                    np.log(self.kmax) * 0.1 + np.log(extrap_kmax) * 0.9,
+                    np.log(extrap_kmax),
+                ]
+            )
             logPnew = np.empty((P_or_logP.shape[0], P_or_logP.shape[1] + 2))
             logPnew[:, :-2] = P_or_logP
             diff = (logPnew[:, -3] - logPnew[:, -4]) / (logk[-3] - logk[-4])
