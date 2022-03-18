@@ -1,6 +1,6 @@
 To pip install:
 
-    pip install git+https://github.com/Ormorod/cobaya@exteral_wa
+    pip install git+https://github.com/Ormorod/cobaya@external_wa
 ===================================================
 *Cobaya*, a code for Bayesian analysis in Cosmology
 ===================================================
