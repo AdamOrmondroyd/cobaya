@@ -550,6 +550,11 @@ class CAMB(BoltzmannBase):
         try:
             params, results = self.provider.get_CAMB_transfers()
             if self.collectors or "sigma8" in self.derived_extra:
+                if self.external_wa:
+                    de = self.provider.get_dark_energy()
+                    results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
+                    print("table set")
+                    # print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
                 if self.external_primordial_pk and self.needs_perts:
                     primordial_pk = self.provider.get_primordial_scalar_pk()
                     if primordial_pk.get("log_regular", True):
@@ -586,10 +591,6 @@ class CAMB(BoltzmannBase):
                     args.update(self.initial_power_args)
                     results.Params.InitPower.set_params(**args)
                 # put in dark energy table here
-                if self.external_wa:
-                    de = self.provider.get_dark_energy()
-                    results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
-                    print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
                 if self.non_linear_sources or self.non_linear_pk:
                     args = {
                         self.translate_param(p): v
@@ -697,9 +698,9 @@ class CAMB(BoltzmannBase):
             # unit conversion and ell_factor. CAMB output is *with* the factors already
             ells_factor = ls[1:] * (ls[1:] + 1)
             cl_camb[1:, :] /= ells_factor[..., np.newaxis]
-            cl_camb[1:, :] *= (2 * np.pi) * units_factor ** 2
+            cl_camb[1:, :] *= (2 * np.pi) * units_factor**2
         elif units_factor != 1:
-            cl_camb *= units_factor ** 2
+            cl_camb *= units_factor**2
         mapping = {"tt": 0, "ee": 1, "bb": 2, "te": 3, "et": 3}
         cls = {"ell": ls}
         for sp, i in mapping.items():
@@ -712,7 +713,7 @@ class CAMB(BoltzmannBase):
                 cls["pp"] = cl_lens[:, 0].copy()
                 if not ell_factor:
                     # noinspection PyUnboundLocalVariable
-                    cls["pp"][1:] /= ells_factor ** 2 / (2 * np.pi)
+                    cls["pp"][1:] /= ells_factor**2 / (2 * np.pi)
                 if self._needs_lensing_cross:
                     for i, cross in enumerate(["pt", "pe"]):
                         cls[cross] = cl_lens[:, i + 1].copy() * units_factor
