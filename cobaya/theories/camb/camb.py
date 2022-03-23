@@ -550,6 +550,7 @@ class CAMB(BoltzmannBase):
         try:
             params, results = self.provider.get_CAMB_transfers()
             if self.collectors or "sigma8" in self.derived_extra:
+                # put in dark energy table here
                 if self.external_wa:
                     de = self.provider.get_dark_energy()
                     results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
@@ -590,7 +591,7 @@ class CAMB(BoltzmannBase):
                     }
                     args.update(self.initial_power_args)
                     results.Params.InitPower.set_params(**args)
-                # put in dark energy table here
+
                 if self.non_linear_sources or self.non_linear_pk:
                     args = {
                         self.translate_param(p): v
@@ -635,6 +636,7 @@ class CAMB(BoltzmannBase):
         state["derived_extra"] = {
             p: self._get_derived(p, intermediates) for p in self.derived_extra
         }
+        print("we got to the end of calulate()")
 
     @staticmethod
     def _get_derived(p, intermediates):
