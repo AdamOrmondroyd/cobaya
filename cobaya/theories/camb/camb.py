@@ -554,8 +554,8 @@ class CAMB(BoltzmannBase):
                 if self.external_wa:
                     de = self.provider.get_dark_energy()
                     results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
-                    print("table set")
-                    # print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
+                    # print("table set")
+                    print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
                 if self.external_primordial_pk and self.needs_perts:
                     primordial_pk = self.provider.get_primordial_scalar_pk()
                     if primordial_pk.get("log_regular", True):
@@ -584,6 +584,7 @@ class CAMB(BoltzmannBase):
                                 primordial_pk["k"], primordial_pk["Pk"]
                             )
                 else:
+                    print("internal P(k)")
                     args = {
                         self.translate_param(p): v
                         for p, v in params_values_dict.items()
@@ -591,16 +592,19 @@ class CAMB(BoltzmannBase):
                     }
                     args.update(self.initial_power_args)
                     results.Params.InitPower.set_params(**args)
-
-                if self.non_linear_sources or self.non_linear_pk:
+                print("got to the end of setting P(k)")
+                if self.non_linear_sources or self.non_linear_pk or self.external_wa:
                     args = {
                         self.translate_param(p): v
                         for p, v in params_values_dict.items()
                         if p in self.nonlin_params
                     }
                     args.update(self.nonlin_args)
+                    print("args updated")
                     results.Params.NonLinearModel.set_params(**args)
-                results.power_spectra_from_transfer()
+                print("set args")
+                print(args)
+                results.power_spectra_from_transfer()  ######## THIS ONEEEEEEEEEEE IS THE SEG FAULT
             print("got past translating params")
             for product, collector in self.collectors.items():
                 if collector:
@@ -621,6 +625,7 @@ class CAMB(BoltzmannBase):
                 raise
             else:
                 # Assumed to be a "parameter out of range" error.
+                print("error raised in CAMB.calculate()")
                 self.log.debug(
                     "Computation of cosmological products failed. "
                     "Assigning 0 likelihood and going on. "
@@ -1135,6 +1140,7 @@ class CambTransfers(HelperTheory):
                 )
                 raise
             else:
+                print("error raised in CAMBTransfers.calculate()")
                 # Assumed to be a "parameter out of range" error.
                 self.log.debug(
                     "Computation of cosmological products failed. "
