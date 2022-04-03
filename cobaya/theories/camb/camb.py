@@ -606,7 +606,8 @@ class CAMB(BoltzmannBase):
                 print(args)
                 # try recalculating transfer functions at this point, because power_spectra_from_transfers saves recalculating this step, but
                 # I wonder whether actually they might need to be recalculated
-                params, results = self.provider.get_CAMB_transfers()
+                results.calc_transfers(results.Params)
+                print("calculated transfers")
                 results.power_spectra_from_transfer()  ######## THIS ONEEEEEEEEEEE IS THE SEG FAULT
             print("got past translating params")
             for product, collector in self.collectors.items():
