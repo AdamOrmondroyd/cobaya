@@ -552,8 +552,16 @@ class CAMB(BoltzmannBase):
             if self.collectors or "sigma8" in self.derived_extra:
                 # put in dark energy table here
                 if self.external_wa:
+                    # instead of w_a table, assume is straight and just go from
+                    # first element to last element.
+                    # I'm not convinced this will work correctly, I'm more interested
+                    # to see whether the integration times out.
                     de = self.provider.get_dark_energy()
-                    results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
+                    a, w = de["a"], de["w"]
+                    wa = -(w[-1] - w[0]) / (a[-1] - a[0])
+                    wtoday = w[0] - (1 - a[0]) * wa
+                    results.Params.DarkEnergy.set_params(wtoday, wa)
+                    # results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
                     # print("table set")
                     print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
                 if self.external_primordial_pk and self.needs_perts:
