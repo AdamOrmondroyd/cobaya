@@ -593,7 +593,7 @@ class CAMB(BoltzmannBase):
                     args.update(self.initial_power_args)
                     results.Params.InitPower.set_params(**args)
                 print("got to the end of setting P(k)")
-                if self.non_linear_sources or self.non_linear_pk or self.external_wa:
+                if self.non_linear_sources or self.non_linear_pk:
                     args = {
                         self.translate_param(p): v
                         for p, v in params_values_dict.items()
@@ -606,8 +606,8 @@ class CAMB(BoltzmannBase):
                 print(args)
                 # try recalculating transfer functions at this point, because power_spectra_from_transfers saves recalculating this step, but
                 # I wonder whether actually they might need to be recalculated
-                results.calc_transfers(results.Params)
-                print("calculated transfers")
+                # results.calc_transfers(results.Params)
+                print("didn't calculate transfers")
                 results.power_spectra_from_transfer()  ######## THIS ONEEEEEEEEEEE IS THE SEG FAULT
             print("got past translating params")
             for product, collector in self.collectors.items():
