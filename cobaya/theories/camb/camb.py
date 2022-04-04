@@ -609,7 +609,7 @@ class CAMB(BoltzmannBase):
                 # results.calc_transfers(results.Params)
                 print("didn't calculate transfers")
                 results.power_spectra_from_transfer()  ######## THIS ONEEEEEEEEEEE IS THE SEG FAULT
-            print("got past translating params")
+            print("got past calculating transferS")
             for product, collector in self.collectors.items():
                 if collector:
                     state[product] = collector.method(
