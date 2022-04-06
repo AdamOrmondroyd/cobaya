@@ -551,11 +551,11 @@ class CAMB(BoltzmannBase):
             params, results = self.provider.get_CAMB_transfers()
             if self.collectors or "sigma8" in self.derived_extra:
                 # put in dark energy table here
-                if self.external_wa:
-                    de = self.provider.get_dark_energy()
-                    results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
-                    # print("table set")
-                    print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
+                # if self.external_wa:
+                #     de = self.provider.get_dark_energy()
+                #     results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
+                #     # print("table set")
+                #     print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
                 if self.external_primordial_pk and self.needs_perts:
                     primordial_pk = self.provider.get_primordial_scalar_pk()
                     if primordial_pk.get("log_regular", True):
@@ -897,7 +897,13 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            return self.camb.set_params(self._base_params.copy(), **args)
+            params_to_return = self.camb.set_params(self._base_params.copy(), **args)
+            # put in dark energy table here
+            if self.external_wa:
+                de = self.provider.get_dark_energy()
+                params_to_return.DarkEnergy.set_w_a_table(de["a"], de["w"])
+                print(f"wa table set! {params_to_return.DarkEnergy.use_tabulated_w}")
+            return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(
