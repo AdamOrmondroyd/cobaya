@@ -913,7 +913,7 @@ class CAMB(BoltzmannBase):
                 wa = -(w[-1] - w[0]) / (a[-1] - a[0])
                 wtoday = w[0] - (1 - a[0]) * wa
                 params_to_return.DarkEnergy.set_params(wtoday, wa)
-                return params_to_return
+            return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(
