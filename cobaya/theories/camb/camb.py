@@ -551,19 +551,19 @@ class CAMB(BoltzmannBase):
             params, results = self.provider.get_CAMB_transfers()
             if self.collectors or "sigma8" in self.derived_extra:
                 # put in dark energy table here
-                if self.external_wa:
-                    # instead of w_a table, assume is straight and just go from
-                    # first element to last element.
-                    # I'm not convinced this will work correctly, I'm more interested
-                    # to see whether the integration times out.
-                    de = self.provider.get_dark_energy()
-                    a, w = de["a"], de["w"]
-                    wa = -(w[-1] - w[0]) / (a[-1] - a[0])
-                    wtoday = w[0] - (1 - a[0]) * wa
-                    results.Params.DarkEnergy.set_params(wtoday, wa)
-                    # results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
-                    # print("table set")
-                    print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
+                # if self.external_wa:
+                #     # instead of w_a table, assume is straight and just go from
+                #     # first element to last element.
+                #     # I'm not convinced this will work correctly, I'm more interested
+                #     # to see whether the integration times out.
+                #     de = self.provider.get_dark_energy()
+                #     a, w = de["a"], de["w"]
+                #     wa = -(w[-1] - w[0]) / (a[-1] - a[0])
+                #     wtoday = w[0] - (1 - a[0]) * wa
+                #     results.Params.DarkEnergy.set_params(wtoday, wa)
+                #     # results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
+                #     # print("table set")
+                #     print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
                 if self.external_primordial_pk and self.needs_perts:
                     primordial_pk = self.provider.get_primordial_scalar_pk()
                     if primordial_pk.get("log_regular", True):
@@ -905,7 +905,17 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            return self.camb.set_params(self._base_params.copy(), **args)
+            original_function_return = self.camb.set_params(
+                self._base_params.copy(), **args
+            )
+            ## put dark energy in here
+            if self.external_wa:
+                de = self.provider.get_dark_energy()
+                a, w = de["a"], de["w"]
+                wa = -(w[-1] - w[0]) / (a[-1] - a[0])
+                wtoday = w[0] - (1 - a[0]) * wa
+                self.camb.CAMBparams.DarkEnergy.set_params(wtoday, wa)
+            return original_function_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(
