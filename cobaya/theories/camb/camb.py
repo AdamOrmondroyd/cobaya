@@ -599,7 +599,7 @@ class CAMB(BoltzmannBase):
                 print("set args")
                 print(args)
                 results.power_spectra_from_transfer()  ######## THIS ONEEEEEEEEEEE IS THE SEG FAULT
-            print("got past calculating transferS")
+            print("got past calculating transfers")
             for product, collector in self.collectors.items():
                 if collector:
                     state[product] = collector.method(
