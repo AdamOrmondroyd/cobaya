@@ -550,12 +550,6 @@ class CAMB(BoltzmannBase):
         try:
             params, results = self.provider.get_CAMB_transfers()
             if self.collectors or "sigma8" in self.derived_extra:
-                # put in dark energy table here
-                # if self.external_wa:
-                #     de = self.provider.get_dark_energy()
-                #     results.Params.DarkEnergy.set_w_a_table(de["a"], de["w"])
-                #     # print("table set")
-                #     print(f"wa table set! {results.Params.DarkEnergy.use_tabulated_w}")
                 if self.external_primordial_pk and self.needs_perts:
                     primordial_pk = self.provider.get_primordial_scalar_pk()
                     if primordial_pk.get("log_regular", True):
@@ -604,10 +598,6 @@ class CAMB(BoltzmannBase):
                     results.Params.NonLinearModel.set_params(**args)
                 print("set args")
                 print(args)
-                # try recalculating transfer functions at this point, because power_spectra_from_transfers saves recalculating this step, but
-                # I wonder whether actually they might need to be recalculated
-                # results.calc_transfers(results.Params)
-                print("didn't calculate transfers")
                 results.power_spectra_from_transfer()  ######## THIS ONEEEEEEEEEEE IS THE SEG FAULT
             print("got past calculating transferS")
             for product, collector in self.collectors.items():
