@@ -526,8 +526,8 @@ class CAMB(BoltzmannBase):
                         "max_l_tensor", self.extra_args.get("lmax")
                     )
                 }
-        if self.external_wa:
-            must_provide["dark_energy"] = {}
+        # if self.external_wa:
+        #     must_provide["dark_energy"] = {}
         return must_provide
 
     def add_to_redshifts(self, z):
@@ -890,8 +890,11 @@ class CAMB(BoltzmannBase):
             params_to_return = self.camb.set_params(self._base_params.copy(), **args)
             # put in dark energy table here
             if self.external_wa:
-                de = self.provider.get_dark_energy()
-                params_to_return.DarkEnergy.set_w_a_table(de["a"], de["w"])
+                # de = self.provider.get_dark_energy()
+                # in this branch we just set dark energy to a bunch of -1
+                a = np.linspace(1e-10, 1, 10000)
+                w = np.ones_like(a) * -1
+                params_to_return.DarkEnergy.set_w_a_table(a, w)
                 print(f"wa table set! {params_to_return.DarkEnergy.use_tabulated_w}")
             return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
