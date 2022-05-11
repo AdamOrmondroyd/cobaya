@@ -1145,7 +1145,7 @@ class CambTransfers(HelperTheory):
                 )
                 raise
             else:
-                print("error raised in CAMBTransfers.calculate()")
+                self.log.debug("error raised in CAMBTransfers.calculate()")
                 # Assumed to be a "parameter out of range" error.
                 self.log.debug(
                     "Computation of cosmological products failed. "
