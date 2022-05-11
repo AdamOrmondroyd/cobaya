@@ -578,7 +578,7 @@ class CAMB(BoltzmannBase):
                                 primordial_pk["k"], primordial_pk["Pk"]
                             )
                 else:
-                    print("internal P(k)")
+                    self.log.debug("internal P(k)")
                     args = {
                         self.translate_param(p): v
                         for p, v in params_values_dict.items()
@@ -586,7 +586,7 @@ class CAMB(BoltzmannBase):
                     }
                     args.update(self.initial_power_args)
                     results.Params.InitPower.set_params(**args)
-                print("got to the end of setting P(k)")
+                self.log.debug("got to the end of setting P(k)")
                 if self.non_linear_sources or self.non_linear_pk:
                     args = {
                         self.translate_param(p): v
@@ -594,12 +594,12 @@ class CAMB(BoltzmannBase):
                         if p in self.nonlin_params
                     }
                     args.update(self.nonlin_args)
-                    print("args updated")
+                    self.log.debug("args updated")
                     results.Params.NonLinearModel.set_params(**args)
-                print("set args")
-                print(args)
+                self.log.debug("set args")
+                self.log.debug(args)
                 results.power_spectra_from_transfer()  ######## THIS ONEEEEEEEEEEE IS THE SEG FAULT
-            print("got past calculating transfers")
+            self.log.debug("got past calculating transfers")
             for product, collector in self.collectors.items():
                 if collector:
                     state[product] = collector.method(
@@ -619,7 +619,7 @@ class CAMB(BoltzmannBase):
                 raise
             else:
                 # Assumed to be a "parameter out of range" error.
-                print("error raised in CAMB.calculate()")
+                self.log.debug("error raised in CAMB.calculate()")
                 self.log.debug(
                     "Computation of cosmological products failed. "
                     "Assigning 0 likelihood and going on. "
@@ -636,7 +636,7 @@ class CAMB(BoltzmannBase):
         state["derived_extra"] = {
             p: self._get_derived(p, intermediates) for p in self.derived_extra
         }
-        print("we got to the end of calulate()")
+        self.log.debug("we got to the end of calulate()")
 
     @staticmethod
     def _get_derived(p, intermediates):
@@ -895,6 +895,9 @@ class CAMB(BoltzmannBase):
                 wa = -(w[-1] - w[0]) / (a[-1] - a[0])
                 wtoday = w[0] - (1 - a[0]) * wa
                 params_to_return.DarkEnergy.set_params(wtoday, wa)
+                self.log.debug(
+                    f"wa table set! {params_to_return.DarkEnergy.use_tabulated_w}"
+                )
             return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
@@ -1142,7 +1145,7 @@ class CambTransfers(HelperTheory):
                 )
                 raise
             else:
-                print("error raised in CAMBTransfers.calculate()")
+                self.log.debug("error raised in CAMBTransfers.calculate()")
                 # Assumed to be a "parameter out of range" error.
                 self.log.debug(
                     "Computation of cosmological products failed. "
