@@ -892,9 +892,8 @@ class CAMB(BoltzmannBase):
             if self.external_wa:
                 de = self.provider.get_dark_energy()
                 a, w = de["a"], de["w"]
-                wa = -(w[-1] - w[0]) / (a[-1] - a[0])
-                wtoday = w[0] - (1 - a[0]) * wa
-                params_to_return.DarkEnergy.set_params(wtoday, wa)
+                wtoday = w[-1]
+                params_to_return.DarkEnergy.set_params(wtoday)
                 self.log.debug(
                     f"wa table set! {params_to_return.DarkEnergy.use_tabulated_w}"
                 )
