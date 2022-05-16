@@ -823,14 +823,17 @@ class CAMB(BoltzmannBase):
                     ).args[1:]:
                         base_args.pop(not_needed, None)
                 self._reduced_extra_args = self.extra_args.copy()
-                params = self.camb.set_params(**base_args)
                 ## put dark energy in here
+                ## DE has to be set before cosmology, so we make the CAMBparams first,
+                ## set DE, then set the rest as before passing this instance of CAMBparams
+                params = self.camb.CAMBparams()
                 if self.external_wa:
                     de = self.provider.get_dark_energy()
                     a, w = de["a"], de["w"]
                     wtoday = w[-1]
                     params.DarkEnergy.set_params(wtoday)
                     self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
+                params = self.camb.set_params(cp=params, **base_args)
                 # pre-set the parameters that are not varying
                 for non_param_func in [
                     "set_classes",
