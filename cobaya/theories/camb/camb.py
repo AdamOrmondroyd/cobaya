@@ -824,6 +824,13 @@ class CAMB(BoltzmannBase):
                         base_args.pop(not_needed, None)
                 self._reduced_extra_args = self.extra_args.copy()
                 params = self.camb.set_params(**base_args)
+                ## put dark energy in here
+                if self.external_wa:
+                    de = self.provider.get_dark_energy()
+                    a, w = de["a"], de["w"]
+                    wtoday = w[-1]
+                    params.DarkEnergy.set_params(wtoday)
+                    self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
                 # pre-set the parameters that are not varying
                 for non_param_func in [
                     "set_classes",
@@ -887,17 +894,7 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            params_to_return = self.camb.set_params(self._base_params.copy(), **args)
-            ## put dark energy in here
-            if self.external_wa:
-                de = self.provider.get_dark_energy()
-                a, w = de["a"], de["w"]
-                wtoday = w[-1]
-                params_to_return.DarkEnergy.set_params(wtoday)
-                self.log.debug(
-                    f"wa table set! {params_to_return.DarkEnergy.use_tabulated_w}"
-                )
-            return params_to_return
+            return self.camb.set_params(self._base_params.copy(), **args)
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(
