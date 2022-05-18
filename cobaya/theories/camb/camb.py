@@ -812,6 +812,14 @@ class CAMB(BoltzmannBase):
             "Setting parameters: %r and %r", dict(args), dict(self.extra_args)
         )
         try:
+            ## put dark energy in here
+            ## DarkEnergy has to be set before cosmology is theta is used instead of H0
+            params = self.camb.CAMBparams()
+            if self.external_wa:
+                de = self.provider.get_dark_energy()
+                a, w = de["a"], de["w"]
+                params.set_dark_energy(**darkenergy(a, w))
+                self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
             if not self._base_params:
                 base_args = args.copy()
                 base_args.update(self.extra_args)
@@ -823,16 +831,11 @@ class CAMB(BoltzmannBase):
                     ).args[1:]:
                         base_args.pop(not_needed, None)
                 self._reduced_extra_args = self.extra_args.copy()
-                ## put dark energy in here
-                ## DE has to be set before cosmology, so we make the CAMBparams first,
-                ## set DE, then set the rest as before passing this instance of CAMBparams
-                params = self.camb.CAMBparams()
                 if self.external_wa:
-                    de = self.provider.get_dark_energy()
-                    a, w = de["a"], de["w"]
-                    params.DarkEnergy.set_params(**darkenergy(a, w))
-                    self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
-                params = self.camb.set_params(cp=params, **base_args)
+                    base_args.pop("dark_energy_model")
+                    params = self.camb.set_params(cp=params, **base_args)
+                else:
+                    params = self.camb.set_params(**base_args)
                 # pre-set the parameters that are not varying
                 for non_param_func in [
                     "set_classes",
@@ -896,7 +899,18 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            return self.camb.set_params(self._base_params.copy(), **args)
+            base_params_copy = self._base_params.copy()
+            if self.external_wa:
+                base_params_copy.DarkEnergy = params.DarkEnergy
+            ## some temporary print statements
+            params_to_return = self.camb.set_params(base_params_copy, **args)
+            print(type(params_to_return.DarkEnergy))
+            if self.external_wa:
+                print(w[-1])
+            else:
+                print(args["w"])
+            print(params_to_return.DarkEnergy.w)
+            return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(
