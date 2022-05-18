@@ -1181,7 +1181,5 @@ def darkenergy(a, w):
     params = camb.CAMBparams()
     params.DarkEnergy.set_params(**darkenergy(a, w))
     """
-
-    wa = -(w[-1] - w[0]) / (a[-1] - a[0])
-    wtoday = w[0] - (1 - a[0]) * wa
-    return {"w": wtoday, "wa": wa}
+    wtoday = w[-1]
+    return {"w": wtoday}
