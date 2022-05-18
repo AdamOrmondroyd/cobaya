@@ -833,9 +833,8 @@ class CAMB(BoltzmannBase):
                 self._reduced_extra_args = self.extra_args.copy()
                 if self.external_wa:
                     base_args.pop("dark_energy_model")
-                    params = self.camb.set_params(cp=params, **base_args)
-                else:
-                    params = self.camb.set_params(**base_args)
+                params = self.camb.set_params(cp=params, **base_args)
+
                 # pre-set the parameters that are not varying
                 for non_param_func in [
                     "set_classes",
