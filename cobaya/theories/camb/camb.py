@@ -823,7 +823,15 @@ class CAMB(BoltzmannBase):
                     ).args[1:]:
                         base_args.pop(not_needed, None)
                 self._reduced_extra_args = self.extra_args.copy()
-                params = self.camb.set_params(**base_args)
+                ## put dark energy in here
+                ## DE has to be set before cosmology, so we make the CAMBparams first,
+                ## set DE, then set the rest as before passing this instance of CAMBparams
+                params = self.camb.CAMBparams()
+                if self.external_wa:
+                    de = self.provider.get_dark_energy()
+                    a, w = de["a"], de["w"]
+                    params.DarkEnergy.set_w_a_table(a, w)
+                params = self.camb.set_params(cp=params, **base_args)
                 # pre-set the parameters that are not varying
                 for non_param_func in [
                     "set_classes",
@@ -887,15 +895,8 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            params_to_return = self.camb.set_params(self._base_params.copy(), **args)
-            # put in dark energy table here
-            if self.external_wa:
-                de = self.provider.get_dark_energy()
-                params_to_return.DarkEnergy.set_w_a_table(de["a"], de["w"])
-                self.log.debug(
-                    f"wa table set! {params_to_return.DarkEnergy.use_tabulated_w}"
-                )
-            return params_to_return
+            self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
+            return self.camb.set_params(self._base_params.copy(), **args)
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(
