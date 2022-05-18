@@ -901,15 +901,7 @@ class CAMB(BoltzmannBase):
             base_params_copy = self._base_params.copy()
             if self.external_wa:
                 base_params_copy.DarkEnergy = params.DarkEnergy
-            ## some temporary print statements
-            params_to_return = self.camb.set_params(base_params_copy, **args)
-            print(type(params_to_return.DarkEnergy))
-            if self.external_wa:
-                print(w[-1])
-            else:
-                print(args["w"])
-            print(params_to_return.DarkEnergy.w)
-            return params_to_return
+            return self.camb.set_params(base_params_copy, **args)
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(
