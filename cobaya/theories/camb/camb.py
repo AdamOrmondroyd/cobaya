@@ -818,7 +818,7 @@ class CAMB(BoltzmannBase):
             if self.external_wa:
                 de = self.provider.get_dark_energy()
                 a, w = de["a"], de["w"]
-                params.set_dark_energy(**darkenergy(a, w))
+                params.set_dark_energy(**darkenergy(a, w, **self.extra_args))
                 self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
             if not self._base_params:
                 base_args = args.copy()
@@ -901,7 +901,14 @@ class CAMB(BoltzmannBase):
             base_params_copy = self._base_params.copy()
             if self.external_wa:
                 base_params_copy.DarkEnergy = params.DarkEnergy
-            return self.camb.set_params(base_params_copy, **args)
+            params_to_return = self.camb.set_params(base_params_copy, **args)
+            print(type(params_to_return.DarkEnergy))
+            print(params_to_return.DarkEnergy.w)
+            if self.external_wa:
+                print(w[-1])
+            else:
+                print(args["w"])
+            return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(
@@ -1178,15 +1185,20 @@ class CambTransfers(HelperTheory):
         super().initialize_with_params()
 
 
-def darkenergy(a, w):
+def darkenergy(a, w, dark_energy_model, **kwargs):
     """
     Calculates dictionary of w and wa to be passed to DarkEnergy.
 
     usage:
     params = camb.CAMBparams()
-    params.DarkEnergy.set_params(**darkenergy(a, w))
+    params.DarkEnergy.set_params(**darkenergy(a, w, **extra_args))
+
+    where extra_args is dictionary of extra parameters which may contain dark_energy_model.
     """
 
     wa = -(w[-1] - w[0]) / (a[-1] - a[0])
     wtoday = w[0] - (1 - a[0]) * wa
-    return {"w": wtoday, "wa": wa}
+    de_dict = {"w": wtoday, "wa": wa}
+    if dark_energy_model:
+        de_dict["dark_energy_model"] = dark_energy_model
+    return de_dict
