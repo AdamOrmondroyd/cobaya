@@ -900,9 +900,10 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            base_params_copy = self._base_params.copy()
             if self.external_wa:
-                base_params_copy.DarkEnergy = params.DarkEnergy
+                a, w = de["a"], de["w"]
+                self._base_params.set_dark_energy(**darkenergy(a, w, **self.extra_args))
+            base_params_copy = self._base_params.copy()
             params_to_return = self.camb.set_params(base_params_copy, **args)
             print(type(params_to_return.DarkEnergy))
             print(params_to_return.DarkEnergy.w)
