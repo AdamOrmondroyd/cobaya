@@ -190,6 +190,7 @@ from cobaya.tools import (
 )
 from cobaya.theory import HelperTheory
 from cobaya.typing import InfoDict
+from ormorod_helper_functions import timer
 
 
 # Result collector
@@ -804,6 +805,7 @@ class CAMB(BoltzmannBase):
     def get_version(self):
         return self.camb.__version__
 
+    @timer
     def set(self, params_values_dict, state):
         # Prepare parameters to be passed: this is called from the CambTransfers instance
         args = {self.translate_param(p): v for p, v in params_values_dict.items()}
@@ -898,9 +900,10 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            base_params_copy = self._base_params.copy()
             if self.external_wa:
-                base_params_copy.DarkEnergy = params.DarkEnergy
+                a, w = de["a"], de["w"]
+                self._base_params.set_dark_energy(**darkenergy(a, w, **self.extra_args))
+            base_params_copy = self._base_params.copy()
             params_to_return = self.camb.set_params(base_params_copy, **args)
             print(type(params_to_return.DarkEnergy))
             print(params_to_return.DarkEnergy.w)
