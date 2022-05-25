@@ -190,7 +190,6 @@ from cobaya.tools import (
 )
 from cobaya.theory import HelperTheory
 from cobaya.typing import InfoDict
-from ormorod_helper_functions import timer
 
 
 # Result collector
@@ -805,7 +804,6 @@ class CAMB(BoltzmannBase):
     def get_version(self):
         return self.camb.__version__
 
-    @timer
     def set(self, params_values_dict, state):
         # Prepare parameters to be passed: this is called from the CambTransfers instance
         args = {self.translate_param(p): v for p, v in params_values_dict.items()}
