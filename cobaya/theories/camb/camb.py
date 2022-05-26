@@ -814,12 +814,9 @@ class CAMB(BoltzmannBase):
         try:
             ## put dark energy in here
             ## DarkEnergy has to be set before cosmology is theta is used instead of H0
-            params = self.camb.CAMBparams()
             if self.external_wa:
                 de = self.provider.get_dark_energy()
                 a, w = de["a"], de["w"]
-                params.set_dark_energy(**darkenergy(a, w, **self.extra_args))
-                self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
             if not self._base_params:
                 base_args = args.copy()
                 base_args.update(self.extra_args)
@@ -831,7 +828,10 @@ class CAMB(BoltzmannBase):
                     ).args[1:]:
                         base_args.pop(not_needed, None)
                 self._reduced_extra_args = self.extra_args.copy()
+                params = self.camb.CAMBparams()
                 if self.external_wa:
+                    params.set_dark_energy(**darkenergy(a, w, **self.extra_args))
+                    self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
                     base_args.pop("dark_energy_model")
                 params = self.camb.set_params(cp=params, **base_args)
 
@@ -898,10 +898,11 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            if self.external_wa:
-                a, w = de["a"], de["w"]
-                self._base_params.set_dark_energy(**darkenergy(a, w, **self.extra_args))
             base_params_copy = self._base_params.copy()
+            if self.external_wa:
+                self.base_params_copy.set_dark_energy(
+                    **darkenergy(a, w, **self.extra_args)
+                )
             params_to_return = self.camb.set_params(base_params_copy, **args)
             print(type(params_to_return.DarkEnergy))
             print(params_to_return.DarkEnergy.w)
