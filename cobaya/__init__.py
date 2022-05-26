@@ -23,4 +23,6 @@ __obsolete__ = False
 __year__ = "2021"
 __url__ = "https://cobaya.readthedocs.io"
 
-print("This is the Ormorod/flat_wa branch of Cobaya, forked from williamjameshandley's")
+print(
+    "This is the Ormorod/linear_wa branch of Cobaya, forked from williamjameshandley's"
+)
