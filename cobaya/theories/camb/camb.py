@@ -896,9 +896,7 @@ class CAMB(BoltzmannBase):
             args.update(self._reduced_extra_args)
             base_params_copy = self._base_params.copy()
             if self.external_wa:
-                self.base_params_copy.set_dark_energy(
-                    **darkenergy(a, w, **self.extra_args)
-                )
+                base_params_copy.set_dark_energy(**darkenergy(a, w, **self.extra_args))
             params_to_return = self.camb.set_params(base_params_copy, **args)
             print(type(params_to_return.DarkEnergy))
             print(params_to_return.DarkEnergy.w)
