@@ -265,10 +265,6 @@ class CAMB(BoltzmannBase):
             self.initial_power_args, self.power_params = self._extract_params(
                 power_spectrum.set_params
             )
-        # # put in my own dark energy here
-        # if self.external_wa:
-        #     self.extra_args["dark_energy_model"] = self.camb.dark_energy.DarkEnergyPPF
-        #     self.dark_energy_args, self.dark_params = {}, []
 
         nonlin = self.camb.CAMBparams.make_class_named(
             self.extra_args.get("non_linear_model", self.camb.nonlinear.Halofit),
