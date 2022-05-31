@@ -522,8 +522,8 @@ class CAMB(BoltzmannBase):
                         "max_l_tensor", self.extra_args.get("lmax")
                     )
                 }
-        if self.external_wa:
-            must_provide["dark_energy"] = {}
+        # if self.external_wa:
+        #     must_provide["dark_energy"] = {}
         return must_provide
 
     def add_to_redshifts(self, z):
@@ -811,8 +811,8 @@ class CAMB(BoltzmannBase):
             ## put dark energy in here
             ## DarkEnergy has to be set before cosmology is theta is used instead of H0
             if self.external_wa:
-                de = self.provider.get_dark_energy()
-                a, w = de["a"], de["w"]
+                # de = self.provider.get_dark_energy()
+                a, w = 1, args.pop("w")
             if not self._base_params:
                 base_args = args.copy()
                 base_args.update(self.extra_args)
@@ -1192,9 +1192,7 @@ def darkenergy(a, w, dark_energy_model, **kwargs):
     where extra_args is dictionary of extra parameters which may contain dark_energy_model.
     """
 
-    wa = -(w[-1] - w[0]) / (a[-1] - a[0])
-    wtoday = w[0] - (1 - a[0]) * wa
-    de_dict = {"w": wtoday, "wa": wa}
+    de_dict = {"w": w}
     if dark_energy_model:
         de_dict["dark_energy_model"] = dark_energy_model
     return de_dict
