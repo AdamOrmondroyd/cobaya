@@ -901,7 +901,7 @@ class CAMB(BoltzmannBase):
             print(type(params_to_return.DarkEnergy))
             print(params_to_return.DarkEnergy.w)
             if self.external_wa:
-                print(w[-1])
+                print(w)
             else:
                 print(args["w"])
             return params_to_return
