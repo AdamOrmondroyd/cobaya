@@ -1192,7 +1192,9 @@ def darkenergy(a, w, dark_energy_model, **kwargs):
     where extra_args is dictionary of extra parameters which may contain dark_energy_model.
     """
 
-    de_dict = {"w": w[-1]}
+    wa = -(w[-1] - w[0]) / (a[-1] - a[0])
+    wtoday = w[0] - (1 - a[0]) * wa
+    de_dict = {"w": wtoday, "wa": wa}
     if dark_energy_model:
         de_dict["dark_energy_model"] = dark_energy_model
     return de_dict
