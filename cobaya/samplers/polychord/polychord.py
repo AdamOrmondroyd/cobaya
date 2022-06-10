@@ -123,7 +123,7 @@ class polychord(Sampler):
             self.read_resume = self.output.is_resuming()
         else:
             output_prefix = share_mpi(
-                hex(int(self._rng.random() * 16 ** 6))[2:]
+                hex(int(self._rng.random() * 16**6))[2:]
                 if is_main_process()
                 else None
             )
@@ -200,6 +200,15 @@ class polychord(Sampler):
         ]
         # As stated above, num_repeats is ignored, so let's not pass it
         pc_args.pop(pc_args.index("num_repeats"))
+
+        # Custom clustering
+        cluster_info = getattr(self, "custom_cluster")
+        if cluster_info:
+            cluster_module, cluster_name = cluster_info.rsplit(".", 1)
+            self.custom_cluster = getattr(load_module(cluster_module), cluster_name)
+        else:
+            self.custom_cluster = bool(cluster_info)
+
         settings: Any = load_module(
             "pypolychord.settings", path=self._poly_build_path, min_version=None
         )
@@ -207,7 +216,7 @@ class polychord(Sampler):
             self.nDims,
             self.nDerived,
             seed=(self.seed if self.seed is not None else -1),
-            **{p: getattr(self, p) for p in pc_args if getattr(self, p) is not None}
+            **{p: getattr(self, p) for p in pc_args if getattr(self, p) is not None},
         )
         # Prepare callback function
         if self.callback_function is not None:
@@ -313,6 +322,10 @@ class polychord(Sampler):
             self.dump_paramnames(self.raw_prefix)
         sync_processes()
         self.mpi_info("Calling PolyChord...")
+        # provide custom cluster argument if necessary
+        custom_cluster_args = {}
+        if self.custom_cluster:
+            custom_cluster_args["cluster"] = self.custom_cluster
         self.pc.run_polychord(
             loglikelihood,
             self.nDims,
@@ -320,6 +333,7 @@ class polychord(Sampler):
             self.pc_settings,
             prior,
             self.dumper,
+            **custom_cluster_args,
         )
         self.process_raw_output()
 
@@ -448,7 +462,7 @@ class polychord(Sampler):
                 "RAW log(Z) = %g +/- %g ; RAW Z in [%.8g, %.8g] (68%% C.L. log-gaussian)",
                 self.logZ,
                 self.logZstd,
-                *[np.exp(self.logZ + n * self.logZstd) for n in [-1, 1]]
+                *[np.exp(self.logZ + n * self.logZstd) for n in [-1, 1]],
             )
             self._correct_unphysical_fraction()
             if self.output:
@@ -481,7 +495,7 @@ class polychord(Sampler):
                 "log(Z) = %g +/- %g ; Z in [%.8g, %.8g] (68%% C.L. log-gaussian)",
                 self.logZ,
                 self.logZstd,
-                *[np.exp(self.logZ + n * self.logZstd) for n in [-1, 1]]
+                *[np.exp(self.logZ + n * self.logZstd) for n in [-1, 1]],
             )
 
     def products(self):
