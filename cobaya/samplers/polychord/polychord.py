@@ -152,7 +152,7 @@ class polychord(Sampler):
             cluster_module, cluster_name = cluster_info.rsplit(".", 1)
             self.custom_cluster = getattr(load_module(cluster_module), cluster_name)
         else:
-            self.custom_cluster = bool(cluster_info)
+            self.custom_cluster = cluster_info
 
         settings: Any = load_module('pypolychord.settings', path=self._poly_build_path,
                                     min_version=None)
