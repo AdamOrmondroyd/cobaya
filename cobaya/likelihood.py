@@ -31,12 +31,8 @@ import numbers
 
 # Local
 from cobaya.typing import LikesDict, LikeDictIn, ParamValuesDict, empty_dict
-from cobaya.tools import (
-    get_resolved_class,
-    get_external_function,
-    getfullargspec,
-    str_to_list,
-)
+from cobaya.tools import get_resolved_class, get_external_function, getfullargspec, \
+    str_to_list
 from cobaya.log import LoggedError
 from cobaya.component import ComponentCollection
 from cobaya.theory import Theory
@@ -73,9 +69,8 @@ def is_LikelihoodInterface(class_instance):
     Works for both classes and instances.
     """
     # NB: This is much faster than "<method> in dir(class)"
-    cls = (
-        class_instance if class_instance.__class__ is type else class_instance.__class__
-    )
+    cls = class_instance if class_instance.__class__ is type \
+        else class_instance.__class__
     return isinstance(getattr(cls, "current_logp", None), property)
 
 
@@ -86,24 +81,15 @@ class Likelihood(Theory, LikelihoodInterface):
 
     type: Optional[Union[list, str]] = []
 
-    def __init__(
-        self,
-        info: LikeDictIn = empty_dict,
-        name: Optional[str] = None,
-        timing: Optional[bool] = None,
-        packages_path: Optional[str] = None,
-        initialize=True,
-        standalone=True,
-    ):
+    def __init__(self, info: LikeDictIn = empty_dict,
+                 name: Optional[str] = None,
+                 timing: Optional[bool] = None,
+                 packages_path: Optional[str] = None,
+                 initialize=True, standalone=True):
         self.delay = 0
-        super().__init__(
-            info,
-            name=name,
-            timing=timing,
-            packages_path=packages_path,
-            initialize=initialize,
-            standalone=standalone,
-        )
+        super().__init__(info, name=name, timing=timing,
+                         packages_path=packages_path, initialize=initialize,
+                         standalone=standalone)
 
     @property
     def theory(self):
@@ -165,21 +151,19 @@ class LikelihoodExternalFunction(Likelihood):
         self.input_params = str_to_list(self.input_params)
         ignore_args = [self._self_arg]
         if argspec.defaults:
-            required_args = argspec.args[: -len(argspec.defaults)]
+            required_args = argspec.args[:-len(argspec.defaults)]
         else:
             required_args = argspec.args
         self.params = {p: None for p in required_args if p not in ignore_args}
         # MARKED FOR DEPRECATION IN v3.0
         if "_derived" in argspec.args:
             raise LoggedError(
-                self.log,
-                "The use of a `_derived` argument to deal with derived "
-                "parameters has been deprecated. From now on please list your "
-                "derived parameters in a list as the value of %r in the "
-                "likelihood info (see documentation) and have your function "
-                "return a tuple `(logp, {derived_param_1: value_1, ...})`.",
-                "output_params",
-            )
+                self.log, "The use of a `_derived` argument to deal with derived "
+                          "parameters has been deprecated. From now on please list your "
+                          "derived parameters in a list as the value of %r in the "
+                          "likelihood info (see documentation) and have your function "
+                          "return a tuple `(logp, {derived_param_1: value_1, ...})`.",
+                "output_params")
         # END OF DEPRECATION BLOCK
         if self.output_params:
             self.output_params = str_to_list(self.output_params) or []
@@ -187,36 +171,26 @@ class LikelihoodExternalFunction(Likelihood):
         self._uses_self_arg = self._self_arg in argspec.args
         if info.get("requires") and not self._uses_self_arg:
             raise LoggedError(
-                self.log,
-                "If a likelihood has external requirements, declared under %r, "
-                "it needs to accept a keyword argument %r.",
-                "requires",
-                self._self_arg,
-            )
+                self.log, "If a likelihood has external requirements, declared under %r, "
+                          "it needs to accept a keyword argument %r.", "requires",
+                self._self_arg)
         self._requirements = info.get("requires") or {}
         # MARKED FOR DEPRECATION IN v3.0
         if "_theory" in argspec.args:
             raise LoggedError(
-                self.log,
-                "The use of a `_theory` argument to deal with requirements has "
-                "been deprecated. From now on please indicate your requirements"
-                " as the value of field %r in the likelihood info (see "
-                "documentation) and have your function take a parameter "
-                "`_self`.",
-                "requires",
-            )
+                self.log, "The use of a `_theory` argument to deal with requirements has "
+                          "been deprecated. From now on please indicate your requirements"
+                          " as the value of field %r in the likelihood info (see "
+                          "documentation) and have your function take a parameter "
+                          "`_self`.", "requires")
         # END OF DEPRECATION BLOCK
 
-        self._optional_args = [
-            p
-            for p, val in chain(
-                zip(argspec.args[-len(argspec.defaults) :], argspec.defaults)
-                if argspec.defaults
-                else [],
-                (argspec.kwonlydefaults or {}).items(),
-            )
-            if p not in ignore_args and (isinstance(val, numbers.Number) or val is None)
-        ]
+        self._optional_args = \
+            [p for p, val in chain(zip(argspec.args[-len(argspec.defaults):],
+                                       argspec.defaults) if argspec.defaults else [],
+                                   (argspec.kwonlydefaults or {}).items())
+             if p not in ignore_args and
+             (isinstance(val, numbers.Number) or val is None)]
         self._args = set(chain(self._optional_args, self.params))
         if argspec.varkw:
             self._args.update(self.input_params)
@@ -264,9 +238,8 @@ class LikelihoodCollection(ComponentCollection):
     by their names.
     """
 
-    def __init__(
-        self, info_likelihood: LikesDict, packages_path=None, timing=None, theory=None
-    ):
+    def __init__(self, info_likelihood: LikesDict, packages_path=None, timing=None,
+                 theory=None):
         super().__init__()
         self.set_logger("likelihood")
         self.theory = theory
@@ -281,57 +254,33 @@ class LikelihoodCollection(ComponentCollection):
                 if isinstance(external, Theory):
                     self.add_instance(name, external)
                 elif isinstance(external, type):
-                    if not is_LikelihoodInterface(external) or not issubclass(
-                        external, Theory
-                    ):
-                        raise LoggedError(
-                            self.log,
-                            "%s: external class likelihood must "
-                            "be a subclass of Theory and have "
-                            "logp, current_logp attributes",
-                            external.__name__,
-                        )
-                    self.add_instance(
-                        name,
-                        external(
-                            info,
-                            packages_path=packages_path,
-                            timing=timing,
-                            standalone=False,
-                            name=name,
-                        ),
-                    )
+                    if not is_LikelihoodInterface(external) or \
+                            not issubclass(external, Theory):
+                        raise LoggedError(self.log, "%s: external class likelihood must "
+                                                    "be a subclass of Theory and have "
+                                                    "logp, current_logp attributes",
+                                          external.__name__)
+                    self.add_instance(name, external(info, packages_path=packages_path,
+                                                     timing=timing, standalone=False,
+                                                     name=name))
                 else:
                     # If it has an "external" key, wrap it up. Else, load it up
-                    self.add_instance(
-                        name, LikelihoodExternalFunction(info, name, timing=timing)
-                    )
+                    self.add_instance(name, LikelihoodExternalFunction(info, name,
+                                                                       timing=timing))
             else:
                 assert isinstance(info, Mapping)
                 like_class: type = get_resolved_class(
-                    name,
-                    kind="likelihood",
+                    name, kind="likelihood",
                     component_path=info.get("python_path", None),
-                    class_name=info.get("class"),
-                )
-                self.add_instance(
-                    name,
-                    like_class(
-                        info,
-                        packages_path=packages_path,
-                        timing=timing,
-                        standalone=False,
-                        name=name,
-                    ),
-                )
+                    class_name=info.get("class"))
+                self.add_instance(name, like_class(info, packages_path=packages_path,
+                                                   timing=timing, standalone=False,
+                                                   name=name))
 
             if not is_LikelihoodInterface(self[name]):
-                raise LoggedError(
-                    self.log,
-                    "'Likelihood' %s is not actually a "
-                    "likelihood (no current_logp attribute)",
-                    name,
-                )
+                raise LoggedError(self.log, "'Likelihood' %s is not actually a "
+                                            "likelihood (no current_logp attribute)",
+                                  name)
 
     def get_helper_theory_collection(self):
         return self.theory

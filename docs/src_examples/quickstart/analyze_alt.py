@@ -1,6 +1,5 @@
 # Export the results to GetDist
 from getdist.mcsamples import loadMCSamples
-
 # Notice loadMCSamples requires a *full path*
 import os
 

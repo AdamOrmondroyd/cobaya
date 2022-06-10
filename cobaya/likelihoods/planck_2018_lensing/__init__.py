@@ -1,7 +1,5 @@
 from cobaya.likelihoods.base_classes import CMBlikes
-from cobaya.likelihoods.base_classes.planck_clik import (
-    last_version_supp_data_and_covmats,
-)
+from cobaya.likelihoods.base_classes.planck_clik import last_version_supp_data_and_covmats
 
 
 class native(CMBlikes):
@@ -10,12 +8,10 @@ class native(CMBlikes):
     map-based lensing reconstruction \cite{Aghanim:2018oex} (native Python
     re-implementation by A.~Lewis).
     """
-    install_options = {
-        "github_repository": "CobayaSampler/planck_supp_data_and_covmats",
-        "github_release": last_version_supp_data_and_covmats,
-    }
+    install_options = {"github_repository": "CobayaSampler/planck_supp_data_and_covmats",
+                       "github_release": last_version_supp_data_and_covmats}
 
-    bibtex_file = "PlanckLensing2018.bibtex"
+    bibtex_file = 'PlanckLensing2018.bibtex'
 
 
 class CMBMarged(native):

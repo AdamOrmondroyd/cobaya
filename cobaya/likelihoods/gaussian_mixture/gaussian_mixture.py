@@ -24,8 +24,7 @@ class GaussianMixture(Likelihood):
     """
     Gaussian likelihood.
     """
-
-    file_base_name = "gaussian_mixture"
+    file_base_name = 'gaussian_mixture'
 
     # yaml variables
     means: Union[Sequence, np.ndarray]
@@ -59,84 +58,60 @@ class GaussianMixture(Likelihood):
             cov_n_modes, cov_dim, cov_dim_2 = self.covs.shape
             if cov_dim != cov_dim_2:
                 raise LoggedError(
-                    self.log,
-                    "The covariance matrix(/ces) do not appear to be square!\n"
-                    "Got %r",
-                    self.covs,
-                )
+                    self.log, "The covariance matrix(/ces) do not appear to be square!\n"
+                              "Got %r", self.covs)
             if mean_dim != cov_dim:
                 raise LoggedError(
                     self.log,
-                    "The dimensionalities guessed from mean(s) and cov(s) do not match!",
-                )
+                    "The dimensionalities guessed from mean(s) and cov(s) do not match!")
             if mean_n_modes != cov_n_modes:
                 raise LoggedError(
                     self.log,
-                    "The numbers of modes guessed from mean(s) and cov(s) do not match!",
-                )
+                    "The numbers of modes guessed from mean(s) and cov(s) do not match!")
             if mean_dim != self.d():
                 raise LoggedError(
                     self.log,
                     "The dimensionality is %d (guessed from given means and covmats) "
-                    "but was passed %d parameters instead. "
-                    + (
-                        "Maybe you forgot to specify the prefix by which to identify them?"
-                        if self.input_params_prefix
-                        else ""
-                    ),
-                    mean_dim,
-                    len(self.input_params),
-                )
+                    "but was passed %d parameters instead. " +
+                    ("Maybe you forgot to specify the prefix by which to identify them?"
+                     if self.input_params_prefix else ""), mean_dim,
+                    len(self.input_params))
             self.n_modes = mean_n_modes
             if self.derived and len(self.output_params) != self.d() * self.n_modes:
                 raise LoggedError(
                     self.log,
                     "The number of derived parameters must be equal to the dimensionality"
                     " times the number of modes, i.e. %d x %d = %d, but was given %d "
-                    "derived parameters.",
-                    self.d(),
-                    self.n_modes,
+                    "derived parameters.", self.d(), self.n_modes,
                     self.d() * self.n_modes,
-                    len(self.output_params),
-                )
+                    len(self.output_params))
             elif not self.derived and self.output_params:
                 raise LoggedError(
                     self.log,
                     "Derived parameters were requested, but 'derived' option is False. "
                     "Set to True and define as many derived parameters as the "
                     "dimensionality times the number of modes, i.e. %d x %d = %d.",
-                    self.d(),
-                    self.n_modes,
-                    self.d() * self.n_modes,
-                )
+                    self.d(), self.n_modes, self.d() * self.n_modes)
         else:
             raise LoggedError(
-                self.log,
-                "You must specify both a mean (or a list of them) and a "
-                "covariance matrix, or a list of them.",
-            )
-        self.gaussians = [
-            multivariate_normal(mean=mean, cov=cov)
-            for mean, cov in zip(self.means, self.covs)
-        ]
+                self.log, "You must specify both a mean (or a list of them) and a "
+                          "covariance matrix, or a list of them.")
+        self.gaussians = [multivariate_normal(mean=mean, cov=cov)
+                          for mean, cov in zip(self.means, self.covs)]
         if self.weights:
             self.weights = np.asarray(self.weights)
             if not len(self.weights) == len(self.gaussians):
-                raise LoggedError(
-                    self.log, "There must be as many weights as components."
-                )
+                raise LoggedError(self.log,
+                                  "There must be as many weights as components.")
             if not np.isclose(sum(self.weights), 1):
                 self.weights = self.weights / sum(self.weights)
                 self.log.warning(
-                    "Weights of components renormalized to %r", self.weights
-                )
+                    "Weights of components renormalized to %r", self.weights)
         else:
             self.weights = 1 / len(self.gaussians)
 
         # Prepare the transformation(s) for the derived parameters
-        self.inv_choleskyL = [
-            np.linalg.inv(np.linalg.cholesky(cov)) for cov in self.covs
-        ]
+        self.inv_choleskyL = [np.linalg.inv(np.linalg.cholesky(cov)) for cov in self.covs]
 
     def logp(self, **params_values):
         """
@@ -152,22 +127,17 @@ class GaussianMixture(Likelihood):
             for i in range(self.n_modes):
                 standard = self.inv_choleskyL[i].dot(x - self.means[i])
                 derived.update(
-                    (p, v)
-                    for p, v in zip(
-                        list(self.output_params)[i * n : (i + 1) * n], standard
-                    )
-                )
+                    (p, v) for p, v in
+                    zip(list(self.output_params)[i * n:(i + 1) * n], standard))
         # Compute the likelihood and return
         if len(self.gaussians) == 1:
             return self.gaussians[0].logpdf(x)
         else:
-            return logsumexp(
-                [gauss.logpdf(x) for gauss in self.gaussians], b=self.weights
-            )
+            return logsumexp([gauss.logpdf(x) for gauss in self.gaussians],
+                             b=self.weights)
 
 
 # Scripts to generate random means and covariances #######################################
-
 
 def random_mean(ranges, n_modes=1, mpi_warn=True, random_state=None):
     """
@@ -179,27 +149,18 @@ def random_mean(ranges, n_modes=1, mpi_warn=True, random_state=None):
     If ``n_modes>1``, returns an array of such points.
     """
     if not is_main_process() and mpi_warn:
-        print(
-            "WARNING! "
-            "Using with MPI: different process will produce different random results."
-        )
-    mean = np.array(
-        [
-            uniform.rvs(
-                loc=r[0], scale=r[1] - r[0], size=n_modes, random_state=random_state
-            )
-            for r in ranges
-        ]
-    )
+        print("WARNING! "
+              "Using with MPI: different process will produce different random results.")
+    mean = np.array([uniform.rvs(loc=r[0], scale=r[1] - r[0], size=n_modes,
+                                 random_state=random_state) for r in ranges])
     mean = mean.T
     if n_modes == 1:
         mean = mean[0]
     return mean
 
 
-def random_cov(
-    ranges, O_std_min=1e-2, O_std_max=1, n_modes=1, mpi_warn=True, random_state=None
-):
+def random_cov(ranges, O_std_min=1e-2, O_std_max=1, n_modes=1,
+               mpi_warn=True, random_state=None):
     """
     Returns a random covariance matrix, with standard deviations sampled log-uniformly
     from the length of the parameter ranges times ``O_std_min`` and ``O_std_max``, and
@@ -211,31 +172,18 @@ def random_cov(
     If ``n_modes>1``, returns a list of such matrices.
     """
     if not is_main_process() and mpi_warn:
-        print(
-            "WARNING! "
-            "Using with MPI: different process will produce different random results."
-        )
+        print("WARNING! "
+              "Using with MPI: different process will produce different random results.")
     dim = len(ranges)
     scales = np.array([r[1] - r[0] for r in ranges])
     cov = []
     for _ in range(n_modes):
-        stds = scales * 10 ** (
-            uniform.rvs(
-                size=dim,
-                loc=np.log10(O_std_min),
-                scale=np.log10(O_std_max / O_std_min),
-                random_state=random_state,
-            )
-        )
+        stds = scales * 10 ** (uniform.rvs(size=dim, loc=np.log10(O_std_min),
+                                           scale=np.log10(O_std_max / O_std_min),
+                                           random_state=random_state))
         this_cov = np.diag(stds).dot(
-            (
-                random_correlation.rvs(
-                    dim * stds / sum(stds), random_state=random_state
-                )
-                if dim > 1
-                else np.eye(1)
-            ).dot(np.diag(stds))
-        )
+            (random_correlation.rvs(dim * stds / sum(stds), random_state=random_state)
+             if dim > 1 else np.eye(1)).dot(np.diag(stds)))
         # Symmetrize (numerical noise is usually introduced in the last step)
         cov += [(this_cov + this_cov.T) / 2]
     if n_modes == 1:
@@ -243,17 +191,10 @@ def random_cov(
     return cov
 
 
-def info_random_gaussian_mixture(
-    ranges,
-    n_modes=1,
-    input_params_prefix="",
-    output_params_prefix="",
-    O_std_min=1e-2,
-    O_std_max=1,
-    derived=False,
-    mpi_aware=True,
-    random_state=None,
-):
+def info_random_gaussian_mixture(ranges, n_modes=1, input_params_prefix="",
+                                 output_params_prefix="", O_std_min=1e-2, O_std_max=1,
+                                 derived=False, mpi_aware=True,
+                                 random_state=None):
     """
     Wrapper around ``random_mean`` and ``random_cov`` to generate the likelihood and
     parameter info for a random Gaussian.
@@ -264,14 +205,8 @@ def info_random_gaussian_mixture(
     cov: Any
     mean: Any
     if is_main_process() or not mpi_aware:
-        cov = random_cov(
-            ranges,
-            n_modes=n_modes,
-            O_std_min=O_std_min,
-            O_std_max=O_std_max,
-            mpi_warn=False,
-            random_state=random_state,
-        )
+        cov = random_cov(ranges, n_modes=n_modes, O_std_min=O_std_min,
+                         O_std_max=O_std_max, mpi_warn=False, random_state=random_state)
         if n_modes == 1:
             cov = [cov]
         # Make sure it stays away from the edges
@@ -279,53 +214,29 @@ def info_random_gaussian_mixture(
         for i in range(n_modes):
             std = np.sqrt(cov[i].diagonal())
             factor = 3
-            ranges_mean = [
-                [r[0] + factor * s, r[1] - +factor * s] for r, s in zip(ranges, std)
-            ]
+            ranges_mean = [[r[0] + factor * s, r[1] - +factor * s] for r, s in
+                           zip(ranges, std)]
             # If this implies min>max, take the centre
             ranges_mean = [
-                (r if r[0] <= r[1] else 2 * [(r[0] + r[1]) / 2]) for r in ranges_mean
-            ]
-            mean[i] = random_mean(
-                ranges_mean, n_modes=1, mpi_warn=False, random_state=random_state
-            )
+                (r if r[0] <= r[1] else 2 * [(r[0] + r[1]) / 2]) for r in ranges_mean]
+            mean[i] = random_mean(ranges_mean, n_modes=1, mpi_warn=False,
+                                  random_state=random_state)
     else:
         mean, cov = None, None
     if mpi_aware:
         mean, cov = share_mpi((mean, cov))
     dimension = len(ranges)
-    info: InputDict = {
-        "likelihood": {
-            "gaussian_mixture": {
-                "means": mean,
-                "covs": cov,
-                "input_params_prefix": input_params_prefix,
-                "output_params_prefix": output_params_prefix,
-                "derived": derived,
-            }
-        },
+    info: InputDict = {"likelihood": {"gaussian_mixture": {
+        "means": mean, "covs": cov, "input_params_prefix": input_params_prefix,
+        "output_params_prefix": output_params_prefix, "derived": derived}},
         "params": dict(
             # sampled
-            tuple(
-                (
-                    input_params_prefix + "_%d" % i,
-                    {
-                        "prior": {"min": ranges[i][0], "max": ranges[i][1]},
-                        "latex": r"\alpha_{%i}" % i,
-                    },
-                )
-                for i in range(dimension)
-            )
-            +
+            tuple((input_params_prefix + "_%d" % i,
+                   {"prior": {"min": ranges[i][0], "max": ranges[i][1]},
+                    "latex": r"\alpha_{%i}" % i})
+                  for i in range(dimension)) +
             # derived
-            (
-                tuple(
-                    (output_params_prefix + "_%d" % i, {"latex": r"\beta_{%i}" % i})
-                    for i in range(dimension * n_modes)
-                )
-                if derived
-                else ()
-            )
-        ),
-    }
+            (tuple((output_params_prefix + "_%d" % i,
+                    {"latex": r"\beta_{%i}" % i})
+                   for i in range(dimension * n_modes)) if derived else ()))}
     return info
