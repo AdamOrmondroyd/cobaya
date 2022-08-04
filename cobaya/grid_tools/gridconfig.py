@@ -25,46 +25,27 @@ from cobaya.parameterization import is_sampled_param
 
 def getArgs(vals=None):
     parser = argparse.ArgumentParser(
-        prog="cobaya grid-create", description="Initialize grid using settings file"
-    )
-    parser.add_argument(
-        "batchPath",
-        help=(
-            "root directory containing/to contain the grid "
-            "(e.g. ./PLA where directories base, base_xx etc are under ./PLA)"
-        ),
-    )
-    parser.add_argument(
-        "settingName",
-        nargs="?",
-        help=(
-            "python setting file (without .py) for making or updating a grid, "
-            "usually found as python/settingName.py"
-        ),
-    )
-    parser.add_argument(
-        "--read-only",
-        action="store_true",
-        help=("option to configure an already-run existing grid"),
-    )
+        prog="cobaya grid-create",
+        description='Initialize grid using settings file')
+    parser.add_argument('batchPath', help=(
+        'root directory containing/to contain the grid '
+        '(e.g. ./PLA where directories base, base_xx etc are under ./PLA)'))
+    parser.add_argument('settingName', nargs='?', help=(
+        'python setting file (without .py) for making or updating a grid, '
+        'usually found as python/settingName.py'))
+    parser.add_argument('--read-only', action='store_true', help=(
+        'option to configure an already-run existing grid'))
     # Arguments related to installation of requisites
-    parser.add_argument(
-        "--install-reqs-at",
-        help=("install required code and data for the grid in the given folder."),
-    )
-    parser.add_argument(
-        "--install-reqs-force",
-        action="store_true",
-        default=False,
-        help="Force re-installation of apparently installed packages.",
-    )
+    parser.add_argument('--install-reqs-at', help=(
+        'install required code and data for the grid in the given folder.'))
+    parser.add_argument("--install-reqs-force", action="store_true", default=False,
+                        help="Force re-installation of apparently installed packages.")
     return parser.parse_args(vals)
 
 
 def pathIsGrid(batchPath):
     return os.path.exists(batchjob.grid_cache_file(batchPath)) or os.path.exists(
-        os.path.join(batchPath, "config", "config.ini")
-    )
+        os.path.join(batchPath, 'config', 'config.ini'))
 
 
 def make_grid_script():
@@ -74,15 +55,8 @@ def make_grid_script():
     makeGrid(**args.__dict__)
 
 
-def makeGrid(
-    batchPath,
-    settingName=None,
-    settings=None,
-    read_only=False,
-    interactive=False,
-    install_reqs_at=None,
-    install_reqs_force=None,
-):
+def makeGrid(batchPath, settingName=None, settings=None, read_only=False,
+             interactive=False, install_reqs_at=None, install_reqs_force=None):
     print("Generating grid...")
     batchPath = os.path.abspath(batchPath) + os.sep
     if not settings:
@@ -108,7 +82,7 @@ def makeGrid(
             if not jobItem.chainExists():
                 batch.jobItems.remove(jobItem)
         batch.save()
-        print("OK, configured grid with %u existing chains" % (len(batch.jobItems)))
+        print('OK, configured grid with %u existing chains' % (len(batch.jobItems)))
         return batch
     else:
         batch.makeDirectories(setting_file=None)
@@ -152,7 +126,6 @@ def makeGrid(
     if install_reqs_at:
         print("Installing required code and data for the grid.")
         from cobaya.log import logger_setup
-
         logger_setup()
         install_reqs(components_used, path=install_reqs_at, force=install_reqs_force)
     print("Adding covmats (if necessary) and writing input files")
@@ -167,36 +140,23 @@ def makeGrid(
         if sampler == "mcmc" and info["sampler"][sampler].get("covmat", "auto"):
             packages_path = install_reqs_at or info.get(packages_path_input, None)
             if not packages_path:
-                raise ValueError(
-                    "Cannot assign automatic covariance matrices because no "
-                    "external packages path has been defined."
-                )
+                raise ValueError("Cannot assign automatic covariance matrices because no "
+                                 "external packages path has been defined.")
             # Need updated info for covmats: includes renames
             updated_info = update_info(info)
             # Ideally, we use slow+sampled parameters to look for the covariance matrix
             # but since for that we'd need to initialise a model, we approximate that set
             # as theory+sampled
             from itertools import chain
-
-            like_params = set(
-                chain(
-                    *[
-                        list(like["params"])
-                        for like in updated_info["likelihood"].values()
-                    ]
-                )
-            )
-            params_info = {
-                p: v
-                for p, v in updated_info["params"].items()
-                if is_sampled_param(v) and p not in like_params
-            }
-            best_covmat = get_best_covmat(
-                os.path.abspath(packages_path), params_info, updated_info["likelihood"]
-            )
+            like_params = set(chain(*[
+                list(like["params"])
+                for like in updated_info["likelihood"].values()]))
+            params_info = {p: v for p, v in updated_info["params"].items()
+                           if is_sampled_param(v) and p not in like_params}
+            best_covmat = get_best_covmat(os.path.abspath(packages_path),
+                                          params_info, updated_info["likelihood"])
             info["sampler"][sampler]["covmat"] = os.path.join(
-                best_covmat["folder"], best_covmat["name"]
-            )
+                best_covmat["folder"], best_covmat["name"])
         # Write the info for this job
         # Allow overwrite since often will want to regenerate grid with tweaks
         yaml_dump_file(jobItem.iniFile(), sort_cosmetic(info), error_if_exists=False)
@@ -241,9 +201,7 @@ def makeGrid(
 
     if not interactive:
         return batch
-    print("Done... to run do: cobaya-grid-run %s" % batchPath)
-
-
+    print('Done... to run do: cobaya-grid-run %s' % batchPath)
 #    if not start_at_bestfit:
 #        print('....... for best fits: python python/runbatch.py %s --minimize'%batchPath)
 #    print('')

@@ -28,10 +28,9 @@ class LoggedError(Exception):
         if isinstance(logger, str):
             logger = get_logger(logger)
         if not isinstance(logger, logging.Logger):
-            raise SyntaxError(
-                "The first argument of %s must be a logger "
-                "instance or name." % self.__class__.__name__
-            )
+            raise SyntaxError("The first argument of %s must be a logger "
+                              "instance or name." %
+                              self.__class__.__name__)
         if args:
             logger.error(*args, **kwargs)
         msg = args[0] if len(args) else ""
@@ -41,17 +40,8 @@ class LoggedError(Exception):
 
 
 # Exceptions that will never be ignored when a component's calculation fails
-always_stop_exceptions = (
-    LoggedError,
-    KeyboardInterrupt,
-    SystemExit,
-    NameError,
-    SyntaxError,
-    AttributeError,
-    KeyError,
-    ImportError,
-    TypeError,
-)
+always_stop_exceptions = (LoggedError, KeyboardInterrupt, SystemExit, NameError,
+                          SyntaxError, AttributeError, KeyError, ImportError, TypeError)
 
 
 def is_debug(log=None):
@@ -60,8 +50,8 @@ def is_debug(log=None):
 
 
 def get_logger(name):
-    if name.startswith("cobaya."):
-        name = name.split(".")[-1]
+    if name.startswith('cobaya.'):
+        name = name.split('.')[-1]
     return logging.getLogger(name)
 
 
@@ -76,14 +66,10 @@ def abstract(method):
 
     @functools.wraps(method)
     def not_implemented(self, *args, **kwargs):
-        if getattr(getattr(self, method.__name__, None), "_is_abstract", None):
+        if getattr(getattr(self, method.__name__, None), '_is_abstract', None):
             # OK to call if called via super, but not if not over-ridden
-            raise LoggedError(
-                self.log,
-                "%s NotImplemented in %s",
-                method.__name__,
-                self.__class__.__name__,
-            )
+            raise LoggedError(self.log, "%s NotImplemented in %s", method.__name__,
+                              self.__class__.__name__)
         else:
             return method(self, *args, **kwargs)
 
@@ -126,14 +112,10 @@ def exception_handler(exception_type, exception_instance, trace_back):
             return  # no traceback printed
 
     line = "-------------------------------------------------------------\n"
-    log.critical(
-        line[len(_logger_name) + 5 :]
-        + "\n"
-        + "".join(
-            traceback.format_exception(exception_type, exception_instance, trace_back)
-        )
-        + line
-    )
+    log.critical(line[len(_logger_name) + 5:] + "\n" +
+                 "".join(traceback.format_exception(
+                     exception_type, exception_instance, trace_back)) +
+                 line)
     if exception_type == KeyboardInterrupt:
         log.critical("Interrupted by the user.")
     elif is_debug(log):
@@ -144,9 +126,7 @@ def exception_handler(exception_type, exception_instance, trace_back):
             "If you cannot solve it yourself and need to report it, "
             "include the debug output,\n"
             "which you can send it to a file setting '%s:[some_file_name]'.",
-            "debug",
-            "debug_file",
-        )
+            "debug", "debug_file")
     # Exit all MPI processes
     if want_abort:
         mpi.abort_if_mpi()
@@ -159,7 +139,7 @@ def logger_setup(debug=None, debug_file=None):
     Level: if debug=True, take DEBUG. If numerical, use "logging"'s corresponding level.
     Default: INFO
     """
-    if debug is True or os.getenv("COBAYA_DEBUG"):
+    if debug is True or os.getenv('COBAYA_DEBUG'):
         level = logging.DEBUG
     elif debug in (False, None):
         level = logging.INFO
@@ -172,17 +152,13 @@ def logger_setup(debug=None, debug_file=None):
     # Custom formatter
     class MyFormatter(logging.Formatter):
         def format(self, record):
-            fmt = (
-                (" %(asctime)s " if debug else "")
-                + "["
-                + ("%d : " % mpi.get_mpi_rank() if mpi.more_than_one_process() else "")
-                + "%(name)s"
-                + "] "
-                + {logging.ERROR: "*ERROR* ", logging.WARNING: "*WARNING* "}.get(
-                    record.levelno, ""
-                )
-                + "%(message)s"
-            )
+            fmt = ((" %(asctime)s " if debug else "") +
+                   "[" + ("%d : " % mpi.get_mpi_rank()
+                          if mpi.more_than_one_process() else "") +
+                   "%(name)s" + "] " +
+                   {logging.ERROR: "*ERROR* ",
+                    logging.WARNING: "*WARNING* "}.get(record.levelno, "") +
+                   "%(message)s")
             self._style._fmt = fmt
             return super().format(record)
 
@@ -201,8 +177,7 @@ def logger_setup(debug=None, debug_file=None):
     # noinspection PyUnresolvedReferences
     try:
         stdout_handler = next(
-            h for h in logging.root.handlers if getattr(h, "stream", None) == sys.stdout
-        )
+            h for h in logging.root.handlers if getattr(h, "stream", None) == sys.stdout)
         # If there is one, update it's logging level and formatter
         stdout_handler.setLevel(handle_stdout.level)
     except StopIteration:
@@ -213,13 +188,9 @@ def logger_setup(debug=None, debug_file=None):
 
 
 def get_traceback_text(exec_info):
-    return "".join(
-        ["-"] * 20
-        + ["\n\n"]
-        + list(traceback.format_exception(*exec_info))
-        + ["\n"]
-        + ["-"] * 37
-    )
+    return "".join(["-"] * 20 + ["\n\n"] +
+                   list(traceback.format_exception(*exec_info)) +
+                   ["\n"] + ["-"] * 37)
 
 
 class HasLogger:

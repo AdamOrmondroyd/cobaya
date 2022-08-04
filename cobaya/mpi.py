@@ -17,7 +17,7 @@ from enum import IntEnum
 default_error_timeout_seconds = 5
 
 # Vars to keep track of MPI parameters
-_mpi: Any = None if os.environ.get("COBAYA_NOMPI", False) else -1
+_mpi: Any = None if os.environ.get('COBAYA_NOMPI', False) else -1
 _mpi_size = -1
 _mpi_comm: Any = -1
 _mpi_rank: Optional[int] = -1
@@ -56,7 +56,6 @@ def get_mpi():
     if _mpi == -1:
         try:
             from mpi4py import MPI
-
             _mpi = MPI
         except ImportError:
             _mpi = None
@@ -207,9 +206,7 @@ class OtherProcessError(Exception):
     pass
 
 
-def wait_for_request(
-    req, time_out_seconds=default_error_timeout_seconds, interval=0.01
-):
+def wait_for_request(req, time_out_seconds=default_error_timeout_seconds, interval=0.01):
     time_start = time.time()
     while not req.Test():
         time.sleep(interval)
@@ -225,7 +222,6 @@ def time_out_barrier(time_out_seconds=default_error_timeout_seconds):
 
 
 # decorators to generalize functions/methods for mpi sharing
-
 
 def root_only(func):
     @functools.wraps(func)
@@ -260,7 +256,7 @@ def from_root(func):
         else:
             result = share_mpi()
             if result is None:
-                raise OtherProcessError("Root errored in %s" % func.__name__)
+                raise OtherProcessError('Root errored in %s' % func.__name__)
             return result[0]
 
     return wrapper
@@ -270,6 +266,7 @@ def set_from_root(attributes):
     atts = [attributes] if isinstance(attributes, str) else attributes
 
     def set_method(method):
+
         @functools.wraps(method)
         def wrapper(self, *args, **kwargs):
             if is_main_process():
@@ -283,7 +280,7 @@ def set_from_root(attributes):
             else:
                 values = share_mpi()
                 if values is None:
-                    raise OtherProcessError("Root errored in %s" % method.__name__)
+                    raise OtherProcessError('Root errored in %s' % method.__name__)
                 for name, var in zip(atts, values[1:]):
                     setattr(self, name, var)
                 result = values[0]
@@ -295,7 +292,7 @@ def set_from_root(attributes):
 
 
 def sync_errors(func):
-    err = "Another process raised an error in %s" % func.__name__
+    err = 'Another process raised an error in %s' % func.__name__
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -314,7 +311,6 @@ def sync_errors(func):
 
 # Wrapper for main functions. Traps MPI deadlock via timeout MPI_ABORT if needed,
 
-
 def sync_state(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -329,7 +325,6 @@ def sync_state(func):
 
 # Synchronization between processes, generating OtherProcessError in other threads if
 # any one process raises an exception
-
 
 class State(IntEnum):
     NONE = 0
@@ -349,13 +344,10 @@ log: Any = None
 class ProcessState:
     _id: int = 1
 
-    def __init__(
-        self,
-        name="error",
-        time_out_seconds: Union[float, int] = default_error_timeout_seconds,
-        sleep_interval=0.01,
-        timeout_abort_proc: Callable = abort_if_mpi,
-    ):
+    def __init__(self, name='error',
+                 time_out_seconds: Union[float, int] = default_error_timeout_seconds,
+                 sleep_interval=0.01,
+                 timeout_abort_proc: Callable = abort_if_mpi):
         self.name = str(name)
         ProcessState._id += 1
         self.tag = ProcessState._id
@@ -373,12 +365,11 @@ class ProcessState:
         """
         if self.states[self._rank] != value:
             if log:
-                log.info("SET %s %s %s", self.name, self.tag, value)
+                log.info('SET %s %s %s', self.name, self.tag, value)
             self.states[self._rank] = value
             for i_rank in self._others:
-                _mpi_comm.Isend(
-                    self.states[self._rank], dest=i_rank, tag=self.tag
-                ).Test()
+                _mpi_comm.Isend(self.states[self._rank],
+                                dest=i_rank, tag=self.tag).Test()
             return True
         else:
             return False
@@ -391,15 +382,14 @@ class ProcessState:
         """
         while _mpi_comm.iprobe(source=_mpi.ANY_SOURCE, tag=self.tag):
             status = _mpi.Status()
-            _mpi_comm.Recv(
-                self._recv_state, source=_mpi.ANY_SOURCE, tag=self.tag, status=status
-            )
+            _mpi_comm.Recv(self._recv_state, source=_mpi.ANY_SOURCE, tag=self.tag,
+                           status=status)
             state = self._recv_state[0]
             self.states[status.Get_source()] = state
             if check_error and state == State.ERROR:
                 self.fire_error(SyncError)
             if log:
-                log.info("SYNC %s %s %s", self.name, self.tag, self.states)
+                log.info('SYNC %s %s %s', self.name, self.tag, self.states)
 
     def check_error(self):
         """
@@ -444,19 +434,15 @@ class ProcessState:
     @more_than_one
     def __exit__(self, exc_type, exc_val, exc_tb):
         if log:
-            log.info("END %s %s", self.name, self.tag)
+            log.info('END %s %s', self.name, self.tag)
         if exc_type:
             self.set(State.ERROR)
             if not self.wait_all_ended(
-                timeout=not issubclass(exc_type, OtherProcessError)
-            ):
+                    timeout=not issubclass(exc_type, OtherProcessError)):
                 from cobaya.log import get_traceback_text, LoggedError, get_logger
-
                 get_logger(self.name).critical(
-                    "Aborting MPI due to error"
-                    if issubclass(exc_type, LoggedError)
-                    else get_traceback_text(sys.exc_info())
-                )
+                    "Aborting MPI due to error" if issubclass(exc_type, LoggedError) else
+                    get_traceback_text(sys.exc_info()))
                 self.timeout_abort_proc()
                 self.wait_all_ended()  # if didn't actually MPI abort
         else:
