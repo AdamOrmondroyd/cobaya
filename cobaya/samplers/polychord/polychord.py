@@ -6,7 +6,6 @@
          Jesus Torrado (for the cobaya wrapper only)
 """
 # Global
-from time import sleep
 import os
 import sys
 import numpy as np
