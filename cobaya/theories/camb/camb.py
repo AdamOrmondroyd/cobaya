@@ -790,12 +790,11 @@ class CAMB(BoltzmannBase):
                     **darkenergy(a, w, **self.extra_args)
                 )
             params_to_return = self.camb.set_params(base_params_copy, **args)
-            print(type(params_to_return.DarkEnergy))
-            print(params_to_return.DarkEnergy.w)
             if self.external_wa:
-                print(w[-1])
+                assert type(params_to_return.DarkEnergy)[-3:] == "PPF"
+                assert np.isclose(w[-1], params_to_return.DarkEnergy.w) 
             else:
-                print(args["w"])
+                assert np.isclose(args["w"], params_to_return.DarkEnergy.w) 
             return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
