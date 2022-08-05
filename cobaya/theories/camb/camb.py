@@ -614,9 +614,9 @@ class CAMB(BoltzmannBase):
             # unit conversion and ell_factor. CAMB output is *with* the factors already
             ells_factor = ls[1:] * (ls[1:] + 1)
             cl_camb[1:, :] /= ells_factor[..., np.newaxis]
-            cl_camb[1:, :] *= (2 * np.pi) * units_factor**2
+            cl_camb[1:, :] *= (2 * np.pi) * units_factor ** 2
         elif units_factor != 1:
-            cl_camb *= units_factor**2
+            cl_camb *= units_factor ** 2
         mapping = {"tt": 0, "ee": 1, "bb": 2, "te": 3, "et": 3}
         cls = {"ell": ls}
         for sp, i in mapping.items():
@@ -627,7 +627,7 @@ class CAMB(BoltzmannBase):
                 cls["pp"] = cl_lens[:, 0].copy()
                 if not ell_factor:
                     # noinspection PyUnboundLocalVariable
-                    cls["pp"][1:] /= ells_factor**2 / (2 * np.pi)
+                    cls["pp"][1:] /= ells_factor ** 2 / (2 * np.pi)
                 if self._needs_lensing_cross:
                     for i, cross in enumerate(['pt', 'pe']):
                         cls[cross] = cl_lens[:, i + 1].copy() * units_factor
