@@ -791,7 +791,7 @@ class CAMB(BoltzmannBase):
                 )
             params_to_return = self.camb.set_params(base_params_copy, **args)
             if self.external_wa:
-                assert type(params_to_return.DarkEnergy)[-3:] == "PPF"
+                assert type(params_to_return.DarkEnergy).__name__[-3:] == "PPF"
                 assert np.isclose(w[-1], params_to_return.DarkEnergy.w) 
             else:
                 assert np.isclose(args["w"], params_to_return.DarkEnergy.w) 
