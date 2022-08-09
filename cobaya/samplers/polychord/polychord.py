@@ -128,8 +128,8 @@ class polychord(Sampler):
         self.ordering = [
             blocks_flat.index(p) for p in self.model.parameterization.sampled_params()]
         
-        # need to know which parameter is N post-ordering for sorting
-        self._ordered_blocks_flat = [blocks_flat[o] for o in self.ordering]
+        # # need to know which parameter is N post-ordering for sorting
+        # self._ordered_blocks_flat = [blocks_flat[o] for o in self.ordering]
         
         self.grade_dims = [len(block) for block in blocks]
         # Steps per block
@@ -235,7 +235,7 @@ class polychord(Sampler):
         def prior(cube):
             theta = np.empty_like(cube)
             ordered_cube = np.array(cube)[self.ordering]
-            for i, name in enumerate(self._ordered_blocks_flat):
+            for i, name in enumerate(list(self.model.parameterization.sampled_params())):
                 theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
                 if "N" == name:
                     N_prior = int(theta[i])
