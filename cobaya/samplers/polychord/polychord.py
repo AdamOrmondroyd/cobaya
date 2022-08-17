@@ -127,10 +127,6 @@ class polychord(Sampler):
         blocks_flat = list(chain(*blocks))
         self.ordering = [
             blocks_flat.index(p) for p in self.model.parameterization.sampled_params()]
-        
-        # # need to know which parameter is N post-ordering for sorting
-        # self._ordered_blocks_flat = [blocks_flat[o] for o in self.ordering]
-        
         self.grade_dims = [len(block) for block in blocks]
         # Steps per block
         # NB: num_repeats is ignored by PolyChord when int "grade_frac" given,
@@ -223,31 +219,10 @@ class polychord(Sampler):
             derived = list(derived) + list(result.logpriors) + list(loglikes)
             return max(loglikes.sum(), self.pc_settings.logzero), derived
 
-        def forced_indentifiability_transform(x):
-            """Will change this to be imported from PolyChord but just copied to save time."""
-            N = len(x)
-            t = np.zeros(N)
-            t[N-1] = x[N-1]**(1./N)
-            for n in range(N-2, -1, -1):
-                t[n] = x[n]**(1./(n+1)) * t[n+1]
-            return t
-
         def prior(cube):
             theta = np.empty_like(cube)
-            ordered_cube = np.array(cube)[self.ordering]
-            for i, name in enumerate(list(self.model.parameterization.sampled_params())):
-                theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
-                if "N" == name:
-                    N_prior = int(theta[i])
-                    N_idx = i
-                    if N_prior > 2:
-                        ordered_cube[i + 1 : i + N_prior - 1] = forced_indentifiability_transform(ordered_cube[i + 1 : i + N_prior - 1]) # note: -1 is really i+1 and N-2 added together 
-            # print(self._ordered_blocks_flat)
-            # print(theta)
-            print(f"N = {N_prior}")
-            if N_prior > 2:
-                assert np.all(np.diff(theta[N_idx+1:N_idx + N_prior -1]) > 0)
-                print("61016")
+            for i, xi in enumerate(np.array(cube)[self.ordering]):
+                theta[i] = self.model.prior.pdf[i].ppf(xi)
             return theta
 
         if is_main_process():
