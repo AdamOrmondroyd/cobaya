@@ -127,10 +127,6 @@ class polychord(Sampler):
         blocks_flat = list(chain(*blocks))
         self.ordering = [
             blocks_flat.index(p) for p in self.model.parameterization.sampled_params()]
-        
-        # # need to know which parameter is N post-ordering for sorting
-        # self._ordered_blocks_flat = [blocks_flat[o] for o in self.ordering]
-        
         self.grade_dims = [len(block) for block in blocks]
         # Steps per block
         # NB: num_repeats is ignored by PolyChord when int "grade_frac" given,
