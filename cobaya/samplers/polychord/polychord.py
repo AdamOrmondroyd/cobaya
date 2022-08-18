@@ -15,6 +15,7 @@ from itertools import chain
 from typing import Any, Callable, Optional
 from tempfile import gettempdir
 import re
+from mpi4py import MPI
 
 # Local
 from cobaya.tools import read_dnumber, get_external_function, \
@@ -248,6 +249,13 @@ class polychord(Sampler):
             if N_prior > 2:
                 assert np.all(np.diff(theta[N_idx+1:N_idx + N_prior -1]) > 0)
                 print("61016")
+
+            param_dict = {list(self.model.parameterization.sampled_params())[j]: theta[j] for j in range(len(theta))}
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            with open(f"/home/ano23/rds/hpc-work/external_wa/mpi_files/{rank}.txt", "a+") as f:
+                f.write(str(param_dict))
+                f.write("\n")
             return theta
 
         if is_main_process():
