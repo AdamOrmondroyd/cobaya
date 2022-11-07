@@ -52,7 +52,7 @@ class polychord(Sampler):
     oversample_power: float
     nlive: NumberWithUnits
     path: str
-    sorted_uniform_prior: Optional[Sequence]
+    sorted_prior: Optional[Sequence]
 
     def initialize(self):
         """Imports the PolyChord sampler and prepares its arguments."""
@@ -243,11 +243,11 @@ class polychord(Sampler):
             ordered_cube = np.array(cube)[self.ordering]
             idx_to_sort = []
             
-            names = self.model.parameterization.sample_params()
-            idx_to_sort = [self.sorted_uniform_prior.index(name) for name in names if name in self.sorted_uniform_prior]
+            names = list(self.model.parameterization.sampled_params())
+            idx_to_sort = [self.sorted_prior.index(name) for name in names if name in self.sorted_prior]
             if idx_to_sort:
                 ordered_cube[idx_to_sort] = forced_indentifiability_transform(ordered_cube[idx_to_sort])
-            for i, name in enumerate(list(self.model.parameterization.samples_params())):
+            for i, name in enumerate(names):
                 theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
 
             return theta
