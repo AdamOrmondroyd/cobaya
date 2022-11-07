@@ -12,7 +12,7 @@ import numpy as np
 import logging
 import inspect
 from itertools import chain
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Sequence
 from tempfile import gettempdir
 import re
 
@@ -52,6 +52,7 @@ class polychord(Sampler):
     oversample_power: float
     nlive: NumberWithUnits
     path: str
+    sorted_uniform_prior: Optional[Sequence]
 
     def initialize(self):
         """Imports the PolyChord sampler and prepares its arguments."""
@@ -236,6 +237,21 @@ class polychord(Sampler):
             for n in range(N-2, -1, -1):
                 t[n] = x[n]**(1./(n+1)) * t[n+1]
             return t
+
+        def vanilla_prior(cube):
+            theta = np.empty_like(cube)
+            ordered_cube = np.array(cube)[self.ordering]
+            idx_to_sort = []
+            
+            names = self.model.parameterization.sample_params()
+            idx_to_sort = [self.sorted_uniform_prior.index(name) for name in names if name in self.sorted_uniform_prior]
+            if idx_to_sort:
+                ordered_cube[idx_to_sort] = forced_indentifiability_transform(ordered_cube[idx_to_sort])
+            for i, name in enumerate(list(self.model.parameterization.samples_params())):
+                theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
+
+            return theta
+
 
         def prior(cube):
             theta = np.empty_like(cube)
