@@ -238,7 +238,7 @@ class polychord(Sampler):
                 t[n] = x[n]**(1./(n+1)) * t[n+1]
             return t
 
-        def vanilla_prior(cube):
+        def prior(cube):
             theta = np.empty_like(cube)
             ordered_cube = np.array(cube)[self.ordering]
             idx_to_sort = []
@@ -253,7 +253,7 @@ class polychord(Sampler):
             return theta
 
 
-        def prior(cube):
+        def adaptive_prior(cube):
             theta = np.empty_like(cube)
             ordered_cube = np.array(cube)[self.ordering]
             for i, name in enumerate(list(self.model.parameterization.sampled_params())):
