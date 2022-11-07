@@ -242,7 +242,8 @@ class polychord(Sampler):
             # print(theta)
             print(f"N = {N_prior}")
             if N_prior > 2:
-                assert np.all(np.diff(theta[N_idx+1:N_idx + N_prior -1]) > 0)
+                if not np.all(np.diff(theta[N_idx+1:N_idx + N_prior -1]) > 0):
+                    raise LoggedError(self.log, "not 61016 :(")
                 print("61016")
             return theta
 
