@@ -86,3 +86,4 @@ write_stats: True
 write_live: True
 write_dead: True
 write_prior: True
+custom_cluster: False

@@ -145,6 +145,15 @@ class polychord(Sampler):
                    "file_root", "seed", "grade_dims", "grade_frac", "nlives"]
         # As stated above, num_repeats is ignored, so let's not pass it
         pc_args.pop(pc_args.index("num_repeats"))
+
+        # Custom clustering
+        cluster_info = getattr(self, "custom_cluster")
+        if cluster_info:
+            cluster_module, cluster_name = cluster_info.rsplit(".", 1)
+            self.custom_cluster = getattr(load_module(cluster_module), cluster_name)
+        else:
+            self.custom_cluster = cluster_info
+
         settings: Any = load_module('pypolychord.settings', path=self._poly_build_path,
                                     min_version=None)
         self.pc_settings = settings.PolyChordSettings(
@@ -251,8 +260,13 @@ class polychord(Sampler):
             self.dump_paramnames(self.raw_prefix)
         sync_processes()
         self.mpi_info("Calling PolyChord...")
+        # provide custom cluster argument if necessary
+        custom_cluster_args = {}
+        if self.custom_cluster:
+            custom_cluster_args["cluster"] = self.custom_cluster
+        
         self.pc.run_polychord(loglikelihood, self.nDims, self.nDerived, self.pc_settings,
-                              prior, self.dumper)
+                              prior, self.dumper, **custom_cluster_args)
         self.process_raw_output()
 
     @property
