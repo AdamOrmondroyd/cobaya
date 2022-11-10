@@ -244,7 +244,8 @@ class polychord(Sampler):
             idx_to_sort = []
             
             names = list(self.model.parameterization.sampled_params())
-            idx_to_sort = [self.sorted_prior.index(name) for name in names if name in self.sorted_prior]
+            if self.sorted_prior:
+                idx_to_sort = [self.sorted_prior.index(name) for name in names if name in self.sorted_prior]
             if idx_to_sort:
                 ordered_cube[idx_to_sort] = forced_indentifiability_transform(ordered_cube[idx_to_sort])
             for i, name in enumerate(names):
