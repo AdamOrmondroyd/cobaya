@@ -246,7 +246,6 @@ class polychord(Sampler):
             
             names = list(self.model.parameterization.sampled_params())
             if self.sorted_prior:
-                print(self.sorted_prior)
                 # check if only one list has been given, as expect a list of lists
                 # to allow for multiple sorted priors
                 if isinstance(self.sorted_prior[0], str):
