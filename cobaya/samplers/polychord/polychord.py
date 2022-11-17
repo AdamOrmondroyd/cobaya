@@ -246,9 +246,20 @@ class polychord(Sampler):
             
             names = list(self.model.parameterization.sampled_params())
             if self.sorted_prior:
-                idx_to_sort = [self.sorted_prior.index(name) for name in names if name in self.sorted_prior]
-            if idx_to_sort:
-                ordered_cube[idx_to_sort] = forced_indentifiability_transform(ordered_cube[idx_to_sort])
+                print(self.sorted_prior)
+                # check if only one list has been given, as expect a list of lists
+                # to allow for multiple sorted priors
+                if isinstance(self.sorted_prior[0], str):
+                    self.sorted_prior = [self.sorted_prior]
+                for sp in self.sorted_prior:
+                    if isinstance(sp[1], list):
+                        # [N, [a1, a2, ...]]
+                        N_idx = names.index(sp[0])
+                        N_prior = int(self.model.prior.pdf[N_idx].ppf(ordered_cube[N_idx]))
+                        sp = sp[1][:max(N_prior-2, 0)]
+                    if len(sp) > 1:
+                        idx_to_sort = [names.index(name) for name in sp]
+                        ordered_cube[idx_to_sort] = forced_indentifiability_transform(ordered_cube[idx_to_sort])
             for i, name in enumerate(names):
                 theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
 
