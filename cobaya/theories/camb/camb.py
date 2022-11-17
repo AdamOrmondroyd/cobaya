@@ -469,8 +469,8 @@ class CAMB(BoltzmannBase):
                     self.extra_attrs.get(
                         "max_l_tensor", self.extra_args.get("lmax"))}
 
-        if self.external_wa:
-            must_provide["dark_energy"] = {}
+        # if self.external_wa:
+        #     must_provide["dark_energy"] = None
 
         return must_provide
 
@@ -791,10 +791,13 @@ class CAMB(BoltzmannBase):
                 )
             params_to_return = self.camb.set_params(base_params_copy, **args)
             if self.external_wa:
-                assert type(params_to_return.DarkEnergy).__name__[-3:] == "PPF"
-                assert np.isclose(w[-1], params_to_return.DarkEnergy.w) 
+                if not type(params_to_return.DarkEnergy).__name__[-3:] == "PPF":
+                    raise LoggedError(self.log, "DE not PPF")
+                if not np.isclose(w[-1], params_to_return.DarkEnergy.w):
+                    raise LoggedError(self.log, "w not set in camb.set()")
             else:
-                assert np.isclose(args["w"], params_to_return.DarkEnergy.w) 
+                if not np.isclose(args["w"], params_to_return.DarkEnergy.w):
+                    raise LoggedError(self.log, "w not set properly (not external_wa")
             return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
@@ -959,6 +962,8 @@ class CambTransfers(HelperTheory):
             self.non_linear_sources = opts['non_linear']
             self.needs_perts = opts['needs_perts']
         self.cobaya_camb.check_no_repeated_input_extra()
+        if self.cobaya_camb.external_wa:
+            return {"dark_energy": None}
 
     def get_CAMB_transfers(self):
         return self.current_state['results']
@@ -981,6 +986,13 @@ class CambTransfers(HelperTheory):
                 results = self.camb.get_transfer_functions(camb_params) \
                     if self.needs_perts else self.camb.get_background(camb_params)
             state['results'] = (camb_params, results)
+
+            de = self.provider.get_dark_energy()
+            _, w = state["results"][1].get_dark_energy_rho_w(de["a"])
+            if not np.all(np.isclose(w, de["w"])):
+                raise LoggedError(self.log, "w didn't match in CambTransfers")
+            rank = MPI.COMM_WORLD.Get_rank()
+            print(f"[{rank}] w matches in CambTransfers", flush=True)
         except self.camb.baseconfig.CAMBError as e:
             if self.stop_at_error:
                 self.log.error(
