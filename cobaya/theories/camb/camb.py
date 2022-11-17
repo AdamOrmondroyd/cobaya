@@ -148,7 +148,7 @@ best adapts to your needs:
 
 * To use your own version, assuming it's placed under ``/path/to/theories/CAMB``,
   just make sure it is compiled (and that the version on top of which you based your
-  modifications is young enough to have the Python interface implemented).
+  modifications is old enough to have the Python interface implemented.
 
 In the cases above, you **must** specify the path to your CAMB installation in
 the input block for CAMB (otherwise a system-wide CAMB may be used instead):
@@ -183,6 +183,7 @@ from cobaya.tools import getfullargspec, get_class_methods, get_properties, load
     VersionCheckError, str_to_list
 from cobaya.theory import HelperTheory
 from cobaya.typing import InfoDict
+from mpi4py import MPI
 
 
 # Result collector
@@ -210,6 +211,7 @@ class CAMB(BoltzmannBase):
 
     file_base_name = 'camb'
     external_primordial_pk: bool
+    external_wa: bool
     camb: Any
 
     def initialize(self):
@@ -512,12 +514,17 @@ class CAMB(BoltzmannBase):
                             params_values_dict.items() if p in self.power_params}
                     args.update(self.initial_power_args)
                     results.Params.InitPower.set_params(**args)
+                self.log.debug("got to the end of setting P(k)")
                 if self.non_linear_sources or self.non_linear_pk:
                     args = {self.translate_param(p): v for p, v in
                             params_values_dict.items() if p in self.nonlin_params}
                     args.update(self.nonlin_args)
+                    self.log.debug("args updated")
                     results.Params.NonLinearModel.set_params(**args)
-                results.power_spectra_from_transfer()
+                self.log.debug("set args")
+                self.log.debug(args)
+                results.power_spectra_from_transfer()  ######## THIS ONEEEEEEEEEEE IS THE SEG FAULT
+            self.log.debug("got past calculating transfers")
             for product, collector in self.collectors.items():
                 if collector:
                     state[product] = \
@@ -546,6 +553,18 @@ class CAMB(BoltzmannBase):
         # Prepare necessary extra derived parameters
         state["derived_extra"] = {
             p: self._get_derived(p, intermediates) for p in self.derived_extra}
+        
+        ## check that DE has been set properly
+        de = self.provider.get_dark_energy()
+        _, w = intermediates.results.get_dark_energy_rho_w(de["a"])
+        print(w, flush=True)
+        print(de["w"], flush=True)
+        if not np.all(np.isclose(w, de["w"])):
+            raise LoggedError(self.log, "w not set properly in CAMB.calculate")
+        rank = MPI.COMM_WORLD.Get_rank()
+        print(f"[{rank}] w set correctly in CAMB.calculate()", flush=True)
+        self.log.debug("we got to the end of calulate()")
+
 
     @staticmethod
     def _get_derived(p, intermediates):
@@ -695,12 +714,18 @@ class CAMB(BoltzmannBase):
         return self.camb.__version__
 
     def set(self, params_values_dict, state):
+        # print("camb.set()", flush=True)
         # Prepare parameters to be passed: this is called from the CambTransfers instance
         args = {self.translate_param(p): v for p, v in params_values_dict.items()}
         # Generate and save
         self.log.debug("Setting parameters: %r and %r",
                        dict(args), dict(self.extra_args))
         try:
+            ## put dark energy in here
+            ## DarkEnergy has to be set before cosmology is theta is used instead of H0
+            if self.external_wa:
+                de = self.provider.get_dark_energy()
+                a, w = de["a"], de["w"]
             if not self._base_params:
                 base_args = args.copy()
                 base_args.update(self.extra_args)
@@ -711,7 +736,13 @@ class CAMB(BoltzmannBase):
                             self.camb.CAMBparams.set_for_lmax).args[1:]:
                         base_args.pop(not_needed, None)
                 self._reduced_extra_args = self.extra_args.copy()
-                params = self.camb.set_params(**base_args)
+                params = self.camb.CAMBparams()
+                if self.external_wa:
+                    params.set_dark_energy_w_a(**darkenergy(a, w, **self.extra_args))
+                    self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
+                    base_args.pop("dark_energy_model")
+                params = self.camb.set_params(cp=params, **base_args)
+
                 # pre-set the parameters that are not varying
                 for non_param_func in ['set_classes', 'set_matter_power', 'set_for_lmax']:
                     for fixed_param in getfullargspec(
@@ -760,7 +791,21 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            return self.camb.set_params(self._base_params.copy(), **args)
+            base_params_copy = self._base_params.copy()
+            if self.external_wa:
+                base_params_copy.set_dark_energy_w_a(
+                    **darkenergy(a, w, **self.extra_args)
+                )
+            params_to_return = self.camb.set_params(base_params_copy, **args)
+            if self.external_wa:
+                if not type(params_to_return.DarkEnergy).__name__[-3:] == "PPF":
+                    raise LoggedError(self.log, "DE not PPF")
+                if not np.isclose(w[-1], params_to_return.DarkEnergy.w):
+                    raise LoggedError(self.log, "w not set in camb.set()")
+            else:
+                if not np.isclose(args["w"], params_to_return.DarkEnergy.w):
+                    raise LoggedError(self.log, "w not set properly (not external_wa")
+            return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(self.log, "Out of bound parameters: %r",
@@ -924,6 +969,8 @@ class CambTransfers(HelperTheory):
             self.non_linear_sources = opts['non_linear']
             self.needs_perts = opts['needs_perts']
         self.cobaya_camb.check_no_repeated_input_extra()
+        if self.cobaya_camb.external_wa:
+            return {"dark_energy": None}
 
     def get_CAMB_transfers(self):
         return self.current_state['results']
@@ -946,6 +993,13 @@ class CambTransfers(HelperTheory):
                 results = self.camb.get_transfer_functions(camb_params) \
                     if self.needs_perts else self.camb.get_background(camb_params)
             state['results'] = (camb_params, results)
+
+            de = self.provider.get_dark_energy()
+            _, w = state["results"][1].get_dark_energy_rho_w(de["a"])
+            if not np.all(np.isclose(w, de["w"])):
+                raise LoggedError(self.log, "w didn't match in CambTransfers")
+            rank = MPI.COMM_WORLD.Get_rank()
+            print(f"[{rank}] w matches in CambTransfers", flush=True)
         except self.camb.baseconfig.CAMBError as e:
             if self.stop_at_error:
                 self.log.error(
@@ -955,6 +1009,7 @@ class CambTransfers(HelperTheory):
                     dict(state["params"]), dict(self.cobaya_camb.extra_args))
                 raise
             else:
+                self.log.debug("error raised in CAMBTransfers.calculate()")
                 # Assumed to be a "parameter out of range" error.
                 self.log.debug("Computation of cosmological products failed. "
                                "Assigning 0 likelihood and going on. "
@@ -971,3 +1026,20 @@ class CambTransfers(HelperTheory):
                                         "to CAMB.")
 
         super().initialize_with_params()
+
+
+def darkenergy(a, w, dark_energy_model, **kwargs):
+    """
+    Calculates dictionary of w and wa to be passed to DarkEnergy.
+
+    usage:
+    params = camb.CAMBparams()
+    params.DarkEnergy.set_params(**darkenergy(a, w, **extra_args))
+
+    where extra_args is dictionary of extra parameters which may contain dark_energy_model.
+    """
+
+    de_dict = {"a": a, "w": w}
+    if dark_energy_model:
+        de_dict["dark_energy_model"] = dark_energy_model
+    return de_dict

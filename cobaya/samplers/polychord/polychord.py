@@ -15,6 +15,7 @@ from itertools import chain
 from typing import Any, Callable, Optional, Sequence
 from tempfile import gettempdir
 import re
+from mpi4py import MPI
 
 # Local
 from cobaya.tools import read_dnumber, get_external_function, \
@@ -266,11 +267,18 @@ class polychord(Sampler):
                         ordered_cube[i + 1 : i + N_prior - 1] = forced_indentifiability_transform(ordered_cube[i + 1 : i + N_prior - 1]) # note: -1 is really i+1 and N-2 added together 
             # print(self._ordered_blocks_flat)
             # print(theta)
-            print(f"N = {N_prior}")
+            # print(f"N = {N_prior}")
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
             if N_prior > 2:
                 if not np.all(np.diff(theta[N_idx+1:N_idx + N_prior -1]) > 0):
                     raise LoggedError(self.log, "not 61016 :(")
-                print("61016")
+            print(f"[{rank}] 61016", flush=True)
+
+            param_dict = {list(self.model.parameterization.sampled_params())[j]: theta[j] for j in range(len(theta))}
+            with open(f"/home/ano23/rds/hpc-work/external_wa/mpi_files/{rank}.txt", "a+") as f:
+                f.write(str(param_dict))
+                f.write("\n")
             return theta
 
         if is_main_process():
