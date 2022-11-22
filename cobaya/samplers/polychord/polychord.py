@@ -29,6 +29,16 @@ from cobaya.yaml import yaml_dump_file
 from cobaya.conventions import derived_par_name_separator, packages_path_arg, Extension
 
 
+def forced_indentifiability_transform(x):
+    """Will change this to be imported from PolyChord but just copied to save time."""
+    N = len(x)
+    t = np.zeros(N)
+    t[N-1] = x[N-1]**(1./N)
+    for n in range(N-2, -1, -1):
+        t[n] = x[n]**(1./(n+1)) * t[n+1]
+    return t
+
+
 class polychord(Sampler):
     r"""
     PolyChord sampler \cite{Handley:2015fda,2015MNRAS.453.4384H}, a nested sampler
@@ -111,6 +121,42 @@ class polychord(Sampler):
             self.clusters_folder = self.get_clusters_dir(self.output)
             self.output.create_folder(self.clusters_folder)
         self.mpi_info("Storing raw PolyChord output in '%s'.", self.base_dir)
+
+        def timing_prior(cube):
+            theta = np.empty_like(cube)
+            # ordered_cube = np.array(cube)[self.ordering]
+            ordered_cube = cube
+            idx_to_sort = []
+            
+            names = list(self.model.parameterization.sampled_params())
+            if self.sorted_prior:
+                # check if only one list has been given, as expect a list of lists
+                # to allow for multiple sorted priors
+                if isinstance(self.sorted_prior[0], str):
+                    self.sorted_prior = [self.sorted_prior]
+                for sp in self.sorted_prior:
+                    if isinstance(sp[1], list):
+                        # [N, [a1, a2, ...]]
+                        N_idx = names.index(sp[0])
+                        N_prior = int(self.model.prior.pdf[N_idx].ppf(ordered_cube[N_idx]))
+                        sp = sp[1][:max(N_prior-2, 0)]
+                    if len(sp) > 1:
+                        idx_to_sort = [names.index(name) for name in sp]
+                        ordered_cube[idx_to_sort] = forced_indentifiability_transform(ordered_cube[idx_to_sort])
+            for i, name in enumerate(names):
+                theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
+
+            # save parameters to text rile
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            param_dict = {list(self.model.parameterization.sampled_params())[j]: theta[j] for j in range(len(theta))}
+            with open(f"/home/ano23/rds/hpc-work/simultaneous/mpi_files/{rank}.txt", "a+") as f:
+                f.write(str(param_dict))
+                f.write("\n")
+
+            return theta
+        self.prior = timing_prior
+        self.model.prior.prior_transform = timing_prior
         # Exploiting the speed hierarchy
         if self.blocking:
             blocks, oversampling_factors = self.model.check_blocking(self.blocking)
@@ -120,6 +166,7 @@ class polychord(Sampler):
                                                   random_state=self._rng)
             blocks, oversampling_factors = self.model.get_param_blocking_for_sampler(
                 oversample_power=self.oversample_power)
+        delattr(self.model.prior, "prior_transform")
         self.mpi_info("Parameter blocks and their oversampling factors:")
         max_width = len(str(max(oversampling_factors)))
         for f, b in zip(oversampling_factors, blocks):
@@ -230,14 +277,6 @@ class polychord(Sampler):
             derived = list(derived) + list(result.logpriors) + list(loglikes)
             return max(loglikes.sum(), self.pc_settings.logzero), derived
 
-        def forced_indentifiability_transform(x):
-            """Will change this to be imported from PolyChord but just copied to save time."""
-            N = len(x)
-            t = np.zeros(N)
-            t[N-1] = x[N-1]**(1./N)
-            for n in range(N-2, -1, -1):
-                t[n] = x[n]**(1./(n+1)) * t[n+1]
-            return t
 
         def prior(cube):
             theta = np.empty_like(cube)

@@ -521,6 +521,9 @@ class Prior(HasLogger):
             raise LoggedError(
                 self.log, "It is not possible to sample from an external prior "
                           "(see help of this function on how to fix this).")
+        if hasattr(self, "prior_transform"):
+            return np.expand_dims(self.prior_transform(np.random.random_sample(len(self.pdf))), axis=0)
+        print("should never see this")
         return np.array([pdf.rvs(n, random_state=random_state) for pdf in self.pdf]).T
 
     def logps(self, x: np.ndarray) -> List[float]:
