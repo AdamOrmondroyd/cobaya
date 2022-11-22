@@ -557,12 +557,12 @@ class CAMB(BoltzmannBase):
         ## check that DE has been set properly
         de = self.provider.get_dark_energy()
         _, w = intermediates.results.get_dark_energy_rho_w(de["a"])
-        print(w, flush=True)
-        print(de["w"], flush=True)
+        # print(w, flush=True)
+        # print(de["w"], flush=True)
         if not np.all(np.isclose(w, de["w"])):
             raise LoggedError(self.log, "w not set properly in CAMB.calculate")
         rank = MPI.COMM_WORLD.Get_rank()
-        print(f"[{rank}] w set correctly in CAMB.calculate()", flush=True)
+        # print(f"[{rank}] w set correctly in CAMB.calculate()", flush=True)
         self.log.debug("we got to the end of calulate()")
 
 
@@ -999,7 +999,7 @@ class CambTransfers(HelperTheory):
             if not np.all(np.isclose(w, de["w"])):
                 raise LoggedError(self.log, "w didn't match in CambTransfers")
             rank = MPI.COMM_WORLD.Get_rank()
-            print(f"[{rank}] w matches in CambTransfers", flush=True)
+            # print(f"[{rank}] w matches in CambTransfers", flush=True)
         except self.camb.baseconfig.CAMBError as e:
             if self.stop_at_error:
                 self.log.error(

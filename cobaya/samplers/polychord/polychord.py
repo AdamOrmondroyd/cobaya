@@ -262,6 +262,14 @@ class polychord(Sampler):
             for i, name in enumerate(names):
                 theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
 
+            # save parameters to text rile
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            param_dict = {list(self.model.parameterization.sampled_params())[j]: theta[j] for j in range(len(theta))}
+            with open(f"/home/ano23/rds/hpc-work/simultaneous/mpi_files/{rank}.txt", "a+") as f:
+                f.write(str(param_dict))
+                f.write("\n")
+
             return theta
 
 
@@ -283,7 +291,7 @@ class polychord(Sampler):
             if N_prior > 2:
                 if not np.all(np.diff(theta[N_idx+1:N_idx + N_prior -1]) > 0):
                     raise LoggedError(self.log, "not 61016 :(")
-            print(f"[{rank}] 61016", flush=True)
+            # print(f"[{rank}] 61016", flush=True)
 
             param_dict = {list(self.model.parameterization.sampled_params())[j]: theta[j] for j in range(len(theta))}
             with open(f"/home/ano23/rds/hpc-work/external_wa/mpi_files/{rank}.txt", "a+") as f:
