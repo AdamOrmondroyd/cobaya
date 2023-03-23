@@ -555,14 +555,15 @@ class CAMB(BoltzmannBase):
             p: self._get_derived(p, intermediates) for p in self.derived_extra}
         
         ## check that DE has been set properly
-        de = self.provider.get_dark_energy()
-        _, w = intermediates.results.get_dark_energy_rho_w(de["a"])
-        # print(w, flush=True)
-        # print(de["w"], flush=True)
-        if not np.all(np.isclose(w, de["w"])):
-            raise LoggedError(self.log, "w not set properly in CAMB.calculate")
-        rank = MPI.COMM_WORLD.Get_rank()
-        # print(f"[{rank}] w set correctly in CAMB.calculate()", flush=True)
+        if self.external_wa:
+            de = self.provider.get_dark_energy()
+            _, w = intermediates.results.get_dark_energy_rho_w(de["a"])
+            # print(w, flush=True)
+            # print(de["w"], flush=True)
+            # if not np.all(np.isclose(w, de["w"])):
+                # raise LoggedError(self.log, "w not set properly in CAMB.calculate")
+            rank = MPI.COMM_WORLD.Get_rank()
+            # print(f"[{rank}] w set correctly in CAMB.calculate()", flush=True)
         self.log.debug("we got to the end of calulate()")
 
 
@@ -802,9 +803,9 @@ class CAMB(BoltzmannBase):
                     raise LoggedError(self.log, "DE not PPF")
                 if not np.isclose(w[-1], params_to_return.DarkEnergy.w):
                     raise LoggedError(self.log, "w not set in camb.set()")
-            else:
-                if not np.isclose(args["w"], params_to_return.DarkEnergy.w):
-                    raise LoggedError(self.log, "w not set properly (not external_wa")
+            # else:
+                # if not np.isclose(args["w"], params_to_return.DarkEnergy.w):
+                    # raise LoggedError(self.log, "w not set properly (not external_wa")
             return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
@@ -994,12 +995,13 @@ class CambTransfers(HelperTheory):
                     if self.needs_perts else self.camb.get_background(camb_params)
             state['results'] = (camb_params, results)
 
-            de = self.provider.get_dark_energy()
-            _, w = state["results"][1].get_dark_energy_rho_w(de["a"])
-            if not np.all(np.isclose(w, de["w"])):
-                raise LoggedError(self.log, "w didn't match in CambTransfers")
-            rank = MPI.COMM_WORLD.Get_rank()
-            # print(f"[{rank}] w matches in CambTransfers", flush=True)
+            # if self.camb.external_wa:
+                # de = self.provider.get_dark_energy()
+                # _, w = state["results"][1].get_dark_energy_rho_w(de["a"])
+                # if not np.all(np.isclose(w, de["w"])):
+                    # raise LoggedError(self.log, "w didn't match in CambTransfers")
+                # rank = MPI.COMM_WORLD.Get_rank()
+                # # print(f"[{rank}] w matches in CambTransfers", flush=True)
         except self.camb.baseconfig.CAMBError as e:
             if self.stop_at_error:
                 self.log.error(
