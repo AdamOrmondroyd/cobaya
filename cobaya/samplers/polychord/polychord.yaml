@@ -73,7 +73,8 @@ blocking:
 confidence_for_unbounded: 0.9999995  # 5 sigmas of the prior
 # Seeding runs
 # ------------
-seed:  # positive integer
+# positive integer, negative defaults to system time in ms
+seed: -1
 # Raw output of PolyChord (no need to change them, normally)
 # ----------------------------------------------------------
 file_root:
