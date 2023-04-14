@@ -797,7 +797,7 @@ class MCMC(CovmatSampler):
             if not self.progress.empty:
                 with open(self.progress_filename(), "a",
                           encoding="utf-8") as progress_file:
-                    fmts = {"N": lambda x: "{:9d}".format(x)}
+                    fmts = {"N": lambda x: "{:9d}".format(int(x))}
                     # TODO: next one is ignored when added to the dict
                     #        "acceptance_rate": lambda x: "{:15.8g}".format(x)}
                     progress_file.write(self.progress.tail(1).to_string(
