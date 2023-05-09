@@ -258,6 +258,7 @@ class CAMB(BoltzmannBase):
 
     file_base_name = 'camb'
     external_primordial_pk: bool
+    external_wa: bool
     camb: Any
     ignore_obsolete: bool
 
@@ -774,6 +775,11 @@ class CAMB(BoltzmannBase):
         self.log.debug("Setting parameters: %r and %r",
                        dict(args), dict(self.extra_args))
         try:
+            # put dark energy in here
+            # DarkEnergy has to be set before cosmology is theta is used instead of H0
+            if self.external_wa:
+                de = self.provider.get_dark_energy()
+                a, w = de["a"], de["w"]
             if not self._base_params:
                 base_args = args.copy()
                 base_args.update(self.extra_args)
@@ -784,7 +790,13 @@ class CAMB(BoltzmannBase):
                             self.camb.CAMBparams.set_for_lmax).args[1:]:
                         base_args.pop(not_needed, None)
                 self._reduced_extra_args = self.extra_args.copy()
-                params = self.camb.set_params(**base_args)
+                params = self.camb.CAMBparams()
+                if self.external_wa:
+                    params.set_dark_energy_w_a(**darkenergy(a, w, **self.extra_args))
+                    self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
+                    base_args.pop("dark_energy_model")
+                params = self.camb.set_params(cp=params, **base_args)
+
                 # pre-set the parameters that are not varying
                 for non_param_func in ['set_classes', 'set_matter_power', 'set_for_lmax']:
                     for fixed_param in getfullargspec(
@@ -833,7 +845,18 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            return self.camb.set_params(self._base_params.copy(), **args)
+            base_params_copy = self._base_params.copy()
+            if self.external_wa:
+                base_params_copy.set_dark_energy_w_a(
+                    **darkenergy(a, w, **self.extra_args)
+                )
+            params_to_return = self.camb.set_params(base_params_copy, **args)
+            if self.external_wa:
+                if not type(params_to_return.DarkEnergy).__name__[-3:] == "PPF":
+                    raise LoggedError(self.log, "DE not PPF")
+                if not np.isclose(w[-1], params_to_return.DarkEnergy.w):
+                    raise LoggedError(self.log, "w not set in camb.set()")
+            return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(self.log, "Out of bound parameters: %r",
@@ -976,6 +999,8 @@ class CambTransfers(HelperTheory):
             self.non_linear_sources = opts['non_linear']
             self.needs_perts = opts['needs_perts']
         self.cobaya_camb.check_no_repeated_input_extra()
+        if self.cobaya_camb.external_wa:
+            return {"dark_energy": None}
 
     def get_CAMB_transfers(self):
         return self.current_state['results']
@@ -1023,3 +1048,20 @@ class CambTransfers(HelperTheory):
                                         "to CAMB.")
 
         super().initialize_with_params()
+
+
+def darkenergy(a, w, dark_energy_model, **kwargs):
+    """
+    Calculates dictionary of w and wa to be passed to DarkEnergy.
+
+    usage:
+    params = camb.CAMBparams()
+    params.DarkEnergy.set_params(**darkenergy(a, w, **extra_args))
+
+    where extra_args is dictionary of extra parameters which may contain dark_energy_model.
+    """
+
+    de_dict = {"a": a, "w": w}
+    if dark_energy_model:
+        de_dict["dark_energy_model"] = dark_energy_model
+    return de_dict
