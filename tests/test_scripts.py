@@ -18,8 +18,7 @@ def test_doc():
     stream = StringIO()
     with stdout_redirector(stream):
         doc_script(['planck_2018_highl_CamSpec.TT'])
-    assert 'params: !defaults [params_calib_CamSpec, ' \
-           'params_TT_CamSpec, params_TT_CamSpec_fixedcalpol]' in stream.getvalue()
+    assert ' [../base_classes/planck_calib, params_TT_CamSpec]' in stream.getvalue()
     stream = StringIO()
     with stdout_redirector(stream):
         doc_script(['planck_2018_highl_CamSpec.TT', '--expand'])
@@ -30,11 +29,11 @@ yaml = """
 likelihood:
  des_y1.clustering:
  bao.generic:
- planck_2018_lensing:
+ planck_2018_lensing.clik:
 theory:
  camb:
 sampler:
- Minimize:
+ minimize:
 """
 
 
