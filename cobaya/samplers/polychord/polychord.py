@@ -162,12 +162,10 @@ class polychord(Sampler):
         cluster_info = getattr(self, "custom_cluster")
         if cluster_info:
             cluster_module, cluster_name = cluster_info.rsplit(".", 1)
-            self.custom_cluster = getattr(load_module(cluster_module), cluster_name)
+            self.custom_cluster = getattr(load_external_module(cluster_module), cluster_name)
         else:
             self.custom_cluster = cluster_info
 
-        settings: Any = load_module('pypolychord.settings', path=self._poly_build_path,
-                                    min_version=None)
         self.pc_settings = settings.PolyChordSettings(
             self.nDims, self.nDerived, seed=(self.seed if self.seed is not None else -1),
             **{p: getattr(self, p) for p in pc_args if getattr(self, p) is not None})
