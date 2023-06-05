@@ -86,3 +86,5 @@ write_stats: True
 write_live: True
 write_dead: True
 write_prior: True
+# Get arguments to be passed to PolyChord via GetLikelihoodError
+get_args: False

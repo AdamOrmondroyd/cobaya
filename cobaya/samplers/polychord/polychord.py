@@ -33,7 +33,7 @@ from cobaya.conventions import derived_par_name_separator, Extension
 # pylint: disable=attribute-defined-outside-init
 
 
-class GetLikelihoodError(Exception):
+class GetPolyChordArgsError(Exception):
     def __init__(self, likelihood, nDims, nDerived, settings, prior, dumper):
         self.likelihood = likelihood
         self.nDims = nDims
@@ -70,6 +70,7 @@ class polychord(Sampler):
     path: str
     logzero: float
     max_ndead: int
+    get_args: bool
 
     def initialize(self):
         """Imports the PolyChord sampler and prepares its arguments."""
@@ -256,8 +257,9 @@ class polychord(Sampler):
         sync_processes()
         self.mpi_info("Calling PolyChord...")
 
-        raise GetLikelihoodError(loglikelihood, self.nDims, self.nDerived, self.pc_settings,
-                              prior, self.dumper)
+        if self.get_args:
+            raise GetPolyChordArgsError(loglikelihood, self.nDims, self.nDerived, self.pc_settings,
+                                     prior, self.dumper)
         self.pc.run_polychord(loglikelihood, self.nDims, self.nDerived, self.pc_settings,
                               prior, self.dumper)
         self.process_raw_output()
