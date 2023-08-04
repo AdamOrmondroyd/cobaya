@@ -27,7 +27,7 @@ from cobaya.install import download_github_release
 from cobaya.component import ComponentNotInstalledError, load_external_module
 from cobaya.yaml import yaml_dump_file
 from cobaya.conventions import derived_par_name_separator, Extension
-from sklearn.clustering import KMeans
+from sklearn.cluster import KMeans
 
 
 # Suppresses warnings about first defining attrs outside __init__
