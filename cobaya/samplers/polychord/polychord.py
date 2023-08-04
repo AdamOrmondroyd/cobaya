@@ -246,6 +246,9 @@ class polychord(Sampler):
             print("Convex clustering", flush=True)
             kmeans = KMeans(n_clusters=2, init='k-means++')
             labels = kmeans.fit_predict(position_matrix)
+            # to be safe, put labels in asending order
+            if labels[0] == 1:
+                labels = 1 - labels
             midpoint = (kmeans.cluster_centers_[0] + kmeans.cluster_centers_[1]) / 2
             logL_0 = loglikelihood(prior(kmeans.cluster_centers_[0]))
             logL_1 = loglikelihood(prior(kmeans.cluster_centers_[1]))
