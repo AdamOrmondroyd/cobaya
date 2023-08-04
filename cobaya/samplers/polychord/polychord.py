@@ -27,6 +27,7 @@ from cobaya.install import download_github_release
 from cobaya.component import ComponentNotInstalledError, load_external_module
 from cobaya.yaml import yaml_dump_file
 from cobaya.conventions import derived_par_name_separator, Extension
+from sklearn.clustering import KMeans
 
 
 # Suppresses warnings about first defining attrs outside __init__
@@ -157,15 +158,6 @@ class polychord(Sampler):
                    "file_root", "grade_dims", "grade_frac", "nlives"]
         # As stated above, num_repeats is ignored, so let's not pass it
         pc_args.pop(pc_args.index("num_repeats"))
-
-        # Custom clustering
-        cluster_info = getattr(self, "custom_cluster")
-        if cluster_info:
-            cluster_module, cluster_name = cluster_info.rsplit(".", 1)
-            self.custom_cluster = getattr(load_external_module(cluster_module), cluster_name)
-        else:
-            self.custom_cluster = cluster_info
-
         self.pc_settings = settings.PolyChordSettings(
             self.nDims, self.nDerived, seed=(self.seed if self.seed is not None else -1),
             **{p: getattr(self, p) for p in pc_args if getattr(self, p) is not None})
@@ -250,6 +242,21 @@ class polychord(Sampler):
                 theta[i] = self.model.prior.pdf[i].ppf(xi)
             return theta
 
+        def convex_cluster(position_matrix):
+            theta = prior(position_matrix)
+            print("Convex clustering", flush=True)
+            kmeans = KMeans(n_clusters=2, init='k-means++')
+            labels = kmeans.fit_predict(theta)
+            midpoint = (kmeans.cluster_centers_[0] +
+                kmeans.cluster_centers_[1]) / 2
+            logL_0 = loglikelihood(kmeans.cluster_centers_[0])
+            logL_1 = loglikelihood(kmeans.cluster_centers_[1])
+            logL_mid = loglikelihood(midpoint)
+            if logL_mid > logL_0 or logL_mid > logL_1:
+                print("convex!", flush=True)
+                return np.zeros_like(labels, dtype=int)
+            return labels
+
         if is_main_process():
             self.dump_paramnames(self.raw_prefix)
         sync_processes()
@@ -257,8 +264,8 @@ class polychord(Sampler):
         # provide custom cluster argument if necessary
         custom_cluster_args = {}
         if self.custom_cluster:
-            custom_cluster_args["cluster"] = self.custom_cluster
-        
+            custom_cluster_args["cluster"] = convex_cluster
+
         self.pc.run_polychord(loglikelihood, self.nDims, self.nDerived, self.pc_settings,
                               prior, self.dumper, **custom_cluster_args)
         self.process_raw_output()
