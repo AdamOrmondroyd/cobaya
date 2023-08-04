@@ -243,19 +243,18 @@ class polychord(Sampler):
             return theta
 
         def convex_cluster(position_matrix):
-            theta = prior(position_matrix)
             print("Convex clustering", flush=True)
             kmeans = KMeans(n_clusters=2, init='k-means++')
-            labels = kmeans.fit_predict(theta)
-            midpoint = (kmeans.cluster_centers_[0] +
-                kmeans.cluster_centers_[1]) / 2
-            logL_0 = loglikelihood(kmeans.cluster_centers_[0])
-            logL_1 = loglikelihood(kmeans.cluster_centers_[1])
-            logL_mid = loglikelihood(midpoint)
+            labels = kmeans.fit_predict(position_matrix)
+            midpoint = (kmeans.cluster_centers_[0] + kmeans.cluster_centers_[1]) / 2
+            logL_0 = loglikelihood(prior(kmeans.cluster_centers_[0]))
+            logL_1 = loglikelihood(prior(kmeans.cluster_centers_[1]))
+            logL_mid = loglikelihood(prior(midpoint))
             if logL_mid > logL_0 or logL_mid > logL_1:
                 print("convex!", flush=True)
                 return np.zeros_like(labels, dtype=int)
             return labels
+
 
         if is_main_process():
             self.dump_paramnames(self.raw_prefix)
