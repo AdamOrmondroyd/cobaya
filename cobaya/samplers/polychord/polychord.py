@@ -28,6 +28,7 @@ from cobaya.component import ComponentNotInstalledError, load_external_module
 from cobaya.yaml import yaml_dump_file
 from cobaya.conventions import derived_par_name_separator, Extension
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 
 # Suppresses warnings about first defining attrs outside __init__
@@ -147,6 +148,7 @@ class polychord(Sampler):
         # In num_repeats, `d` is interpreted as dimension of each block
         self.grade_frac = [
             int(o * read_dnumber(self.num_repeats, dim_block))
+            # int(o)  # * read_dnumber(self.num_repeats, dim_block))
             for o, dim_block in zip(oversampling_factors, self.grade_dims)]
         # Assign settings
         pc_args = ["nlive", "num_repeats", "nprior", "nfail", "do_clustering",
@@ -246,16 +248,20 @@ class polychord(Sampler):
             print("Convex clustering", flush=True)
             kmeans = KMeans(n_clusters=2, init='k-means++')
             labels = kmeans.fit_predict(position_matrix)
+            if silhouette_score(position_matrix, labels) <= 0:
+                print("silhouette failure", flush=True)
+                return np.zeros_like(labels)
             # to be safe, put labels in asending order
             if labels[0] == 1:
                 labels = 1 - labels
             midpoint = (kmeans.cluster_centers_[0] + kmeans.cluster_centers_[1]) / 2
-            logL_0 = loglikelihood(prior(kmeans.cluster_centers_[0]))
-            logL_1 = loglikelihood(prior(kmeans.cluster_centers_[1]))
-            logL_mid = loglikelihood(prior(midpoint))
+            logL_0 = loglikelihood(prior(kmeans.cluster_centers_[0]))[0]
+            logL_1 = loglikelihood(prior(kmeans.cluster_centers_[1]))[0]
+            logL_mid = loglikelihood(prior(midpoint))[0]
             if logL_mid > logL_0 or logL_mid > logL_1:
-                print("convex!", flush=True)
+                print("Single mode from midpoint comparison", flush=True)
                 return np.zeros_like(labels, dtype=int)
+            print("Two modes!", flush=True)
             return labels
 
 
