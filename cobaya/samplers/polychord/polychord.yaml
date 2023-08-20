@@ -47,7 +47,7 @@ synchronous : True
 # between loglike contours and nlive.
 # You should still set nlive to be a sensible number, as this indicates
 # how often to update the clustering, and to define the default value.
-nlives : {}
+nlives :
 # Perform maximisation at the end of the run to find the maximum
 # likelihood point and value
 maximise : False
@@ -76,7 +76,6 @@ confidence_for_unbounded: 0.9999995  # 5 sigmas of the prior
 seed:  # positive integer
 # Raw output of PolyChord (no need to change them, normally)
 # ----------------------------------------------------------
-file_root:
 posteriors: True
 equals: True
 cluster_posteriors: True
