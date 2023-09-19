@@ -28,7 +28,7 @@ by the 2018 ones, and will eventually be deprecated.
 clik_url = 'https://github.com/benabed/clik/archive/refs/heads/main.zip'
 pla_url_prefix = r"https://pla.esac.esa.int/pla-sl/data-action?COSMOLOGY.COSMOLOGY_OID="
 
-last_version_supp_data_and_covmats = "v2.01"
+last_version_supp_data_and_covmats = "v2.1"
 last_version_clik = "16.0"
 min_version_clik = "3.1"
 
@@ -299,12 +299,12 @@ def get_clik_import_path(path, min_version=min_version_clik):
 def load_clik(*args, **kwargs):
     """
     Just a wrapper around :func:`component.load_external_module`, that checks that we are
-    not being fooled by the wrong `clik <https://pypi.org/project/click/>`_.
+    not being fooled by the wrong `clik <https://pypi.org/project/clik/>`_.
     """
     clik = load_external_module(*args, **kwargs)
     if not hasattr(clik, "try_lensing"):
         raise ComponentNotInstalledError(
-            kwargs.get("logger"), "Loaded wrong clik: `https://pypi.org/project/click/`")
+            kwargs.get("logger"), "Loaded wrong clik: `https://pypi.org/project/clik/`")
     return clik
 
 
