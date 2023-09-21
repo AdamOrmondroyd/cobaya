@@ -663,10 +663,10 @@ class PowerSpectrumInterpolator(RectBivariateSpline):
             raise LoggedError(get_logger(self.__class__.__name__),
                               f"Not possible to extrapolate to k={min(k)} 1/Mpc "
                               f"(minimum k possible is {self.kmin} 1/Mpc).")
-        if max_k > self.kmax and not np.allclose(max_k, self.kmax):
-            raise LoggedError(get_logger(self.__class__.__name__),
-                              f"Not possible to extrapolate to k={max(k)} 1/Mpc "
-                              f"(maximum k possible is {self.kmax} 1/Mpc).")
+        # if max_k > self.kmax and not np.allclose(max_k, self.kmax):
+        #     raise LoggedError(get_logger(self.__class__.__name__),
+        #                       f"Not possible to extrapolate to k={max(k)} 1/Mpc "
+        #                       f"(maximum k possible is {self.kmax} 1/Mpc).")
 
     def P(self, z, k, grid=None):
         """
