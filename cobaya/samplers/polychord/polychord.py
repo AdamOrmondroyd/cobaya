@@ -216,7 +216,7 @@ class polychord(Sampler):
         cluster_info = getattr(self, "custom_cluster")
         if cluster_info:
             cluster_module, cluster_name = cluster_info.rsplit(".", 1)
-            self.custom_cluster = getattr(load_module(cluster_module), cluster_name)
+            self.custom_cluster = getattr(load_external_module(cluster_module), cluster_name)
         else:
             self.custom_cluster = cluster_info
 
