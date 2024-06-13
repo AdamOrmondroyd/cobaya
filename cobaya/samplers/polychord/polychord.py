@@ -39,16 +39,6 @@ if TYPE_CHECKING:
 # pylint: disable=attribute-defined-outside-init
 
 
-def forced_indentifiability_transform(x):
-    """Will change this to be imported from PolyChord but just copied to save time."""
-    N = len(x)
-    t = np.zeros(N)
-    t[N-1] = x[N-1]**(1./N)
-    for n in range(N-2, -1, -1):
-        t[n] = x[n]**(1./(n+1)) * t[n+1]
-    return t
-
-
 class polychord(Sampler):
     r"""
     PolyChord sampler \cite{Handley:2015fda,2015MNRAS.453.4384H}, a nested sampler
@@ -286,6 +276,8 @@ class polychord(Sampler):
         Prepares the prior and likelihood functions, calls ``PolyChord``'s ``run``, and
         processes its output.
         """
+        forced_indentifiability_transform = getattr(load_external_module("pypolychord.priors"), "forced_indentifiability_transform")
+
         # Prepare the polychord likelihood
         def loglikelihood(params_values):
             result = self.model.logposterior(params_values)
