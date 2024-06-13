@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools", "wheel", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -42,8 +42,8 @@ docs = [
     "sphinx-autodoc-typehints", "sphinxcontrib-programoutput",
 ]
 
-[tool.setuptools.dynamic]
-version = { attr = "cobaya.__version__" }
+[tool.setuptools_scm]
+version_file = "cobaya/_version.py"
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml", "*.bibtex"]

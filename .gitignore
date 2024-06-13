@@ -12,6 +12,7 @@
 build/
 dist/
 __pycache__
+cobaya/_version.py
 
 # Documentation
 docs/_*
