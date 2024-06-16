@@ -129,7 +129,7 @@ class polychord(Sampler):
             self.output.create_folder(self.clusters_folder)
         self.mpi_info("Storing raw PolyChord output in '%s'.", self.base_dir)
         
-        self.forced_indentifiability_transform = getattr(load_external_module("pypolychord.priors"), "forced_indentifiability_transform")
+        self.forced_identifiability_transform = getattr(load_external_module("pypolychord.priors"), "forced_indentifiability_transform")
 
         def timing_prior(cube):
             theta = np.empty_like(cube)
@@ -151,7 +151,7 @@ class polychord(Sampler):
                         sp = sp[1][:max(N_prior-2, 0)]
                     if len(sp) > 1:
                         idx_to_sort = [names.index(name) for name in sp]
-                        ordered_cube[idx_to_sort] = self.forced_indentifiability_transform(ordered_cube[idx_to_sort])
+                        ordered_cube[idx_to_sort] = self.forced_identifiability_transform(ordered_cube[idx_to_sort])
             for i, name in enumerate(names):
                 theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
 
@@ -310,7 +310,7 @@ class polychord(Sampler):
                         sp = sp[1][:max(N_prior-2, 0)]
                     if len(sp) > 1:
                         idx_to_sort = [names.index(name) for name in sp]
-                        ordered_cube[idx_to_sort] = self.forced_indentifiability_transform(ordered_cube[idx_to_sort])
+                        ordered_cube[idx_to_sort] = self.forced_identifiability_transform(ordered_cube[idx_to_sort])
             for i, name in enumerate(names):
                 theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
 
@@ -334,7 +334,7 @@ class polychord(Sampler):
                     N_prior = int(theta[i])
                     N_idx = i
                     if N_prior > 2:
-                        ordered_cube[i + 1 : i + N_prior - 1] = self.forced_indentifiability_transform(ordered_cube[i + 1 : i + N_prior - 1]) # note: -1 is really i+1 and N-2 added together 
+                        ordered_cube[i + 1 : i + N_prior - 1] = self.forced_identifiability_transform(ordered_cube[i + 1 : i + N_prior - 1]) # note: -1 is really i+1 and N-2 added together 
             # print(self._ordered_blocks_flat)
             # print(theta)
             # print(f"N = {N_prior}")
