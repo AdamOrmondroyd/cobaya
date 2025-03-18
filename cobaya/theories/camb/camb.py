@@ -259,6 +259,7 @@ class CAMB(BoltzmannBase):
     file_base_name = 'camb'
     external_primordial_pk: bool
     external_wa: bool
+    external_rhopa: bool
     camb: Any
     ignore_obsolete: bool
 
@@ -780,6 +781,9 @@ class CAMB(BoltzmannBase):
             if self.external_wa:
                 de = self.provider.get_dark_energy()
                 a, w = de["a"], de["w"]
+            if self.external_rhopa:
+                de = self.provider.get_dark_energy()
+                a_rho, a_p, rho, p = de["a_rho"], de["a_p"], de["rho"], de["p"]
             if not self._base_params:
                 base_args = args.copy()
                 base_args.update(self.extra_args)
@@ -794,6 +798,11 @@ class CAMB(BoltzmannBase):
                 if self.external_wa:
                     params.set_dark_energy_w_a(**darkenergy(a, w, **self.extra_args))
                     self.log.debug(f"wa table set! {params.DarkEnergy.use_tabulated_w}")
+                    base_args.pop("dark_energy_model")
+                if self.external_rhopa:
+                    params.set_dark_energy_rho_p_a(**darkenergypressure(a_rho,rho,a_p,p, **self.extra_args))
+                    self.log.debug(f"rhopa values: {darkenergypressure(a_rho,rho,a_p,p, **self.extra_args)}")
+                    self.log.debug(f"rhopa table set!")
                     base_args.pop("dark_energy_model")
                 params = self.camb.set_params(cp=params, **base_args)
 
@@ -850,12 +859,19 @@ class CAMB(BoltzmannBase):
                 base_params_copy.set_dark_energy_w_a(
                     **darkenergy(a, w, **self.extra_args)
                 )
+            if self.external_rhopa:
+                base_params_copy.set_dark_energy_rho_p_a(
+                    **darkenergypressure(a_rho, rho, a_p,  p, **self.extra_args)
+                )
             params_to_return = self.camb.set_params(base_params_copy, **args)
             if self.external_wa:
                 if not type(params_to_return.DarkEnergy).__name__[-3:] == "PPF":
                     raise LoggedError(self.log, "DE not PPF")
                 if not np.isclose(w[-1], params_to_return.DarkEnergy.w):
                     raise LoggedError(self.log, "w not set in camb.set()")
+            if self.external_rhopa:
+                if not type(params_to_return.DarkEnergy).__name__[-11:] == "PressurePPF":
+                    raise LoggedError(self.log, "DE not pressureppf")
             return params_to_return
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
@@ -1001,6 +1017,8 @@ class CambTransfers(HelperTheory):
         self.cobaya_camb.check_no_repeated_input_extra()
         if self.cobaya_camb.external_wa:
             return {"dark_energy": None}
+        if self.cobaya_camb.external_rhopa:
+            return {"dark_energy": None}
 
     def get_CAMB_transfers(self):
         return self.current_state['results']
@@ -1008,6 +1026,7 @@ class CambTransfers(HelperTheory):
     def calculate(self, state, want_derived=True, **params_values_dict):
         # Set parameters
         camb_params = self.cobaya_camb.set(params_values_dict, state)
+        self.log.debug("camb_params set")
         # Failed to set parameters but no error raised
         # (e.g. out of computationally feasible range): lik=0
         if not camb_params:
@@ -1017,9 +1036,11 @@ class CambTransfers(HelperTheory):
             if self.non_linear_sources:
                 # only need time sources if non-linear lensing or other non-linear
                 # sources. Not needed just for non-linear PK.
+                self.log.debug(f"getting transfer function non-linear sources") #, {camb_params}
                 results = self.camb.get_transfer_functions(camb_params,
                                                            only_time_sources=True)
             else:
+                self.log.debug("getting transfer function")
                 results = self.camb.get_transfer_functions(camb_params) \
                     if self.needs_perts else self.camb.get_background(camb_params)
             state['results'] = (camb_params, results)
@@ -1065,3 +1086,9 @@ def darkenergy(a, w, dark_energy_model, **kwargs):
     if dark_energy_model:
         de_dict["dark_energy_model"] = dark_energy_model
     return de_dict
+
+def darkenergypressure(a_rho, rho, a_p, p,  dark_energy_model, **kwargs):
+    de_pressure_dict = {"a_rho": a_rho, "rho": rho,"a_p": a_p, "p": p }
+    if dark_energy_model:
+        de_pressure_dict["dark_energy_model"] = dark_energy_model
+    return de_pressure_dict

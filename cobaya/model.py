@@ -368,6 +368,8 @@ class Model(HasLogger):
         outpar_dict: ParamValuesDict = {}
         compute_success = True
         self.provider.set_current_input_params(input_params)
+        # with open(f"{mpi.get_mpi_rank()}_{os.getpid()}.txt", 'a') as file:
+        #     file.write(f"{input_params}\n")
         self.log.debug("Got input parameters: %r", input_params)
         loglikes = np.zeros(len(self.likelihood))
         need_derived = self.requires_derived or return_derived or return_output_params
