@@ -1,13 +1,11 @@
 # Incomplete implementations/bigger jobs
 
-## Grids/rest of cosmomc scripts
-## Lots of batchjob stuff (hasConvergeBetterThan,wantCheckpointContinue etc) now broken
 ## containers
 
 # cosmetic/consistency/speed
 
 ## min/max bounds enforced on derived parameters (more generally, "bounds" as well as priors)
-## make portalocker/numba/dill a requirement?
+## make numba a requirement?
 ## version attribute should be in all components not just theory (samplers can have versions) [done for samplers; missing: likelihoods]
 ## In the docs "Bases" (and UML diagram) not hyperlinked correctly (not sure how to fix)
 ## dump log info along with each chain file if saving to file (currently in stdout)
@@ -27,7 +25,6 @@
 ## If non-linear lensing on, model the non-linear correction via limber for faster semi-slow parameters
 ## minimize:
 + unbounded parameters with flat prior (this would make it safe to rotate the unbounded ones in minimize) [JT: not very much in favour, since that would break a bunch of other stuff. Maybe let's explore an alternative solution? e.g. auto-extend uniform priors.]
-+ add MINUIT
 ## mcmc:
 * finish removing .checkpoint in favour of updated.yaml and .progress
 * For learning checks, X should perhaps ideally also depend slightly on the speed of the cycles, e.g. if either check becomes slow compared to a fast cycle.

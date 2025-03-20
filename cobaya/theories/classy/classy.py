@@ -95,6 +95,15 @@ in :func:`~theories.cosmo.BoltzmannBase.must_provide`, let us know if you think 
 sense to add it.
 
 
+String-vector parameters
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+At the time of writing, the CLASS Python interface takes some vector-like parameters
+as string in which different components are separater by a space. To be able to set priors
+or fixed values on each components, see `this trick
+<https://github.com/CobayaSampler/cobaya/issues/110#issuecomment-652333489>`_, and don't
+forget the ``derived: False`` in the vector parameter (thanks to Lukas Hergt).
+
 .. _classy_modify:
 
 Modifying CLASS
@@ -102,7 +111,7 @@ Modifying CLASS
 
 If you modify CLASS and add new variables, make sure that the variables you create are
 exposed in the Python interface
-(`instructions here <https://github.com/lesgourg/class_public/wiki/Python-wrapper>`__).
+(`instructions here <https://github.com/lesgourg/class_public/wiki/Python-wrapper>`_).
 If you follow those instructions you do not need to make any additional modification in
 Cobaya.
 
@@ -164,10 +173,11 @@ You may prefer to install CLASS manually e.g. if you are planning to modify it.
 
    .. code:: bash
 
-      $ python -m pip install 'cython<3'
+      $ python -m pip install 'cython'
 
-   In particular the version restriction is due to `this issue
-   <https://github.com/lesgourg/class_public/issues/531>`_.
+   In particular, if working with a modified CLASS version based on a version previous
+   to v3.2.1, you need to change above ``'cython'`` by ``'cython<3'`` (see `this issue
+   <https://github.com/lesgourg/class_public/issues/531>`_).
 
 To download and install CLASS manually in a folder called ``CLASS`` under
 ``/path/to/cosmo``, simply do:
@@ -251,9 +261,9 @@ class classy(BoltzmannBase):
 
     # Name of the Class repo/folder and version to download
     _classy_repo_name = "lesgourg/class_public"
-    _min_classy_version = "v3.2.0"
+    _min_classy_version = "v3.2.1"
     _classy_min_gcc_version = "6.4"  # Lower ones are possible atm, but leak memory!
-    _classy_repo_version = os.environ.get('CLASSY_REPO_VERSION', _min_classy_version)
+    _classy_repo_version = os.environ.get('CLASSY_REPO_VERSION', "master")
 
     classy_module: Any
     ignore_obsolete: bool
@@ -263,17 +273,32 @@ class classy(BoltzmannBase):
         install_path = None
         if self.packages_path is not None:
             install_path = self.get_path(self.packages_path)
-        min_version = None if self.ignore_obsolete else self._classy_repo_version
+        min_version = None if self.ignore_obsolete else self._min_classy_version
         try:
-            self.classy_module = load_external_module(
-                "classy", path=self.path, install_path=install_path,
-                min_version=min_version, get_import_path=self.get_import_path,
-                logger=self.log, not_installed_level="debug")
+            try:
+                self.classy_module = load_external_module(
+                    "classy", path=self.path, install_path=install_path,
+                    min_version=min_version, get_import_path=self.get_import_path,
+                    logger=self.log, not_installed_level="debug")
+            # Regression introduced by CLASS v3.3 -- Deprecate CLASS <v3.3 eventually
+            except (VersionCheckError, ComponentNotInstalledError) as ni_internal_excpt:
+                try:
+                    self.classy_module = load_external_module(
+                        "classy", path=self.path, install_path=install_path,
+                        min_version=min_version, get_import_path=self.get_import_path_old,
+                        logger=self.log, not_installed_level="debug")
+                    # Only runs if passed:
+                    self.log.warning(
+                        "Detected an old CLASS version (<3.3). "
+                        "Please update: support for this will be deprecated soon."
+                    )
+                except ComponentNotInstalledError:
+                    raise ni_internal_excpt
         except VersionCheckError as vc_excpt:
             raise VersionCheckError(
                 str(vc_excpt) + " If you are using CLASS unmodified, upgrade with"
-                "`cobaya-install classy --upgrade`. If you are using a modified CLASS, "
-                "set the option `ignore_obsolete: True` for CLASS.") from vc_excpt
+                                "`cobaya-install classy --upgrade`. If you are using a modified CLASS, "
+                                "set the option `ignore_obsolete: True` for CLASS.") from vc_excpt
         except ComponentNotInstalledError as ni_excpt:
             raise ComponentNotInstalledError(
                 self.log, (f"Could not find CLASS: {ni_excpt}. "
@@ -439,7 +464,7 @@ class classy(BoltzmannBase):
                           max(cls[cl] for cl in cls if "b" in cl.lower()) > 50)
         has_lensing = any(("p" in cl.lower()) for cl in cls)
         if (has_BB_l_gt_50 or has_lensing) and \
-           self.extra_args.get("non_linear") == non_linear_null_value:
+                self.extra_args.get("non_linear") == non_linear_null_value:
             self.log.warning("Requesting BB for ell>50 or lensing Cl's: "
                              "using a non-linear code is recommended (and you are not "
                              "using any). To activate it, set "
@@ -521,7 +546,7 @@ class classy(BoltzmannBase):
         args = {self.translate_param(p): v for p, v in params_values_dict.items()}
         args.update(self.extra_args)
         # Generate and save
-        self.log.debug("Setting parameters: %r", args)
+        self.param_dict_debug("Setting parameters: %r", args)
         self.classy.set(**args)
 
     def calculate(self, state, want_derived=True, **params_values_dict):
@@ -638,9 +663,6 @@ class classy(BoltzmannBase):
             requested_and_extra["Omega_nu"] = self.classy.Omega_nu
         if "T_cmb" in requested_and_extra:
             requested_and_extra["T_cmb"] = self.classy.T_cmb()
-        if "theta_s_100" in requested_and_extra:
-            requested_and_extra["theta_s_100"] = \
-                self.classy.get_current_derived_parameters(["100*theta_s"])["100*theta_s"]
         # Get the rest using the general derived param getter
         # No need for error control: classy.get_current_derived_parameters is passed
         # every derived parameter not excluded before, and cause an error, indicating
@@ -676,7 +698,7 @@ class classy(BoltzmannBase):
             if cl == "ell":
                 continue
             units_power = float(sum(cl.count(p) for p in ["t", "e", "b"]))
-            cls[cl][2:] *= units_factor**units_power
+            cls[cl][2:] *= units_factor ** units_power
             if ell_factor:
                 if "p" not in cl:
                     cls[cl][2:] *= ells_factor
@@ -741,6 +763,10 @@ class classy(BoltzmannBase):
 
     @staticmethod
     def get_import_path(path):
+        return get_compiled_import_path(path)
+
+    @staticmethod
+    def get_import_path_old(path):
         return get_compiled_import_path(os.path.join(path, "python"))
 
     @classmethod
@@ -756,10 +782,24 @@ class classy(BoltzmannBase):
         try:
             return bool(load_external_module(
                 "classy", path=kwargs["path"], get_import_path=cls.get_import_path,
-                min_version=cls._classy_repo_version, reload=reload,
+                min_version=cls._min_classy_version, reload=reload,
                 logger=get_logger(cls.__name__), not_installed_level="debug"))
+        # Regression introduced by CLASS v3.3 -- Deprecate CLASS <v3.3 eventually
         except ComponentNotInstalledError:
-            return False
+            try:
+                success = bool(load_external_module(
+                    "classy", path=kwargs["path"],
+                    get_import_path=cls.get_import_path_old,
+                    min_version=cls._min_classy_version, reload=reload,
+                    logger=get_logger(cls.__name__), not_installed_level="debug"))
+                # Only runs if passed:
+                get_logger(cls.__name__).warning(
+                    "Detected an old CLASS version (<3.3). "
+                    "Please update: support for this will be deprecated soon."
+                )
+                return success
+            except ComponentNotInstalledError:
+                return False
 
     @classmethod
     def install(cls, path=None, code=True, no_progress_bars=False, **_kwargs):
@@ -768,9 +808,7 @@ class classy(BoltzmannBase):
             log.info("Code not requested. Nothing to do.")
             return True
         log.info("Installing pre-requisites...")
-        # TODO: remove version restriction below when this issue is fixed:
-        # https://github.com/lesgourg/class_public/issues/531
-        exit_status = pip_install("cython<3")
+        exit_status = pip_install("cython")
         if exit_status:
             log.error("Could not install pre-requisite: cython")
             return False
@@ -800,8 +838,8 @@ class classy(BoltzmannBase):
         process_make = Popen(["make"], cwd=classy_path, stdout=PIPE, stderr=PIPE, env=env)
         out, err = process_make.communicate()
         if process_make.returncode:
-            log.info(out)
-            log.info(err)
+            log.info(out.decode("utf-8"))
+            log.info(err.decode("utf-8"))
             log.error("Compilation failed!")
             return False
         return True

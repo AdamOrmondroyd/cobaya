@@ -11,6 +11,7 @@ import os
 import sys
 import numpy as np
 from packaging import version
+import re
 
 # Local
 from cobaya.likelihood import Likelihood
@@ -18,7 +19,8 @@ from cobaya.log import LoggedError, get_logger
 from cobaya.input import get_default_info
 from cobaya.install import pip_install, download_file
 from cobaya.component import ComponentNotInstalledError, load_external_module
-from cobaya.tools import are_different_params_lists, create_banner, VersionCheckError
+from cobaya.tools import (are_different_params_lists, create_banner,
+                          VersionCheckError, working_directory)
 
 _deprecation_msg_2015 = create_banner("""
 The likelihoods from the Planck 2015 data release have been superseded
@@ -238,7 +240,7 @@ class PlanckClik(Likelihood):
 common_path = "planck"
 
 # To see full clik build output even if installs OK (e.g. to check warnings)
-_clik_verbose = any((s in os.getenv('TRAVIS_COMMIT_MESSAGE', ''))
+_clik_verbose = any((s in os.getenv('COMMIT_MESSAGE', ''))
                     for s in ["clik", "planck"])
 # Don't try again to install clik if it failed for a previous likelihood
 _clik_install_failed = False
@@ -281,12 +283,16 @@ def get_clik_import_path(path, min_version=min_version_clik):
     :class:`tools.VersionCheckError` if the installed version is too old.
     """
     clik_src_path = get_clik_source_folder(path)
-    version_file = os.path.join(clik_src_path, 'svnversion')
+    version_file = os.path.join(clik_src_path, 'readme.md')
     if os.path.exists(version_file):
         with open(version_file, 'r') as f:
-            installed_version = version.parse(f.readline().split("_")[-1].split('-')[0])
+            if version_match := re.search(r'(clik|plc) (\d+\.\d+)', f.read()):
+                installed_version = version_match.group(2)
+            else:
+                installed_version = "16.0"
     else:
-        installed_version = version.parse(clik_src_path.rstrip(os.sep).split("-")[-1])
+        installed_version = clik_src_path.rstrip(os.sep).split("-")[-1]
+    installed_version = version.parse(installed_version)
     if installed_version < version.parse(min_version):
         raise VersionCheckError(
             f"Installed version of the Planck likelihood code 'clik' ({installed_version})"
@@ -354,9 +360,7 @@ def install_clik(path, no_progress_bars=False):
         return False
     source_dir = get_clik_source_folder(path)
     log.info('Installing from directory %s' % source_dir)
-    cwd = os.getcwd()
-    try:
-        os.chdir(source_dir)
+    with working_directory(source_dir):
         log.info("Configuring... (and maybe installing dependencies...)")
         flags = ["--install_all_deps",
                  "--extra_lib=m"]  # missing for some reason in some systems, but harmless
@@ -367,8 +371,6 @@ def install_clik(path, no_progress_bars=False):
         if not execute([sys.executable, "waf", "install"]):
             log.error("Compilation failed!")
             return False
-    finally:
-        os.chdir(cwd)
     log.info("Finished!")
     return True
 

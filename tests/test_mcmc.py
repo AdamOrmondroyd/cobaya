@@ -10,6 +10,7 @@ from cobaya.log import NoLogging, LoggedError
 from cobaya.tools import KL_norm
 from cobaya.yaml import yaml_load
 from .common_sampler import body_of_sampler_test, body_of_test_speeds
+from cobaya.typing import type_checking
 
 pytestmark = pytest.mark.mpi
 
@@ -39,7 +40,7 @@ def test_mcmc(tmpdir, temperature, do_plots, packages_path=None):
 
     def check_gaussian(sampler_instance):
         if not len(sampler_instance.collection) or \
-           not len(sampler_instance.collection[int(sampler_instance.n() / 2):]):
+                not len(sampler_instance.collection[int(sampler_instance.n() / 2):]):
             return
         proposer = KL_norm(
             S1=sampler_instance.model.likelihood["gaussian_mixture"].covs[0],
@@ -109,10 +110,7 @@ def test_mcmc_drag_results(temperature):
     info['likelihood'] = {'g1': {'external': GaussLike}, 'g2': {'external': GaussLike2}}
     info["sampler"]["mcmc"]["temperature"] = temperature
     updated_info, sampler = run(info)
-    products = sampler.products()
-    from getdist.mcsamples import MCSamplesFromCobaya
-    products["sample"] = mpi.allgather(products["sample"])
-    gdsample = MCSamplesFromCobaya(updated_info, products["sample"], ignore_rows=0.2)
+    gdsample = sampler.samples(combined=True, skip_samples=0.2, to_getdist=True)
     if temperature != 1:
         gdsample.cool(temperature)
     assert abs(gdsample.mean('a') - 0.2) < 0.03
@@ -165,7 +163,7 @@ def test_mcmc_sync():
     logger.info('Test error synchronization')
     if mpi.rank() == 0:
         info['sampler']['mcmc'] = {'max_samples': 'bad_val'}
-        with NoLogging(logging.ERROR), pytest.raises(TypeError):
+        with NoLogging(logging.ERROR), pytest.raises(TypeError), type_checking(False):
             run(info)
     else:
         with pytest.raises(mpi.OtherProcessError):
@@ -239,7 +237,7 @@ def _test_overhead_timing(dim=15):
     from cProfile import Profile
     from io import StringIO
     # noinspection PyUnresolvedReferences
-    from cobaya.samplers.mcmc import proposal  # one-time numba compile out of profiling
+    from cobaya.functions import random_SO_N  # one-time numba compile out of profiling
 
     like_test = _make_gaussian_like(dim)
     info: InputDict = {'likelihood': {'like': like_test}, 'debug': False,

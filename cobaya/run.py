@@ -21,7 +21,7 @@ from cobaya.log import logger_setup, is_debug, get_logger, LoggedError
 from cobaya.yaml import yaml_dump
 from cobaya.input import update_info, load_info_overrides
 from cobaya.tools import warn_deprecation, recursive_update, sort_cosmetic
-from cobaya.post import post, PostResultDict
+from cobaya.post import post, PostResult
 from cobaya import mpi
 
 
@@ -30,11 +30,12 @@ def run(info_or_yaml_or_file: Union[InputDict, str, os.PathLike],
         output: Union[str, LiteralFalse, None] = None,
         debug: Union[bool, int, None] = None,
         stop_at_error: Optional[bool] = None,
-        resume: bool = None, force: bool = None,
+        resume: Optional[bool] = None, force: Optional[bool] = None,
         minimize: Optional[bool] = None,
-        no_mpi: bool = False, test: bool = None,
+        no_mpi: bool = False, test: Optional[bool] = None,
         override: Optional[InputDict] = None,
-        ) -> Tuple[InputDict, Union[Sampler, PostResultDict]]:
+        allow_changes: bool = False
+        ) -> Tuple[InputDict, Union[Sampler, PostResult]]:
     """
     Run from an input dictionary, file name or yaml string, with optional arguments
     to override settings in the input as needed.
@@ -51,6 +52,7 @@ def run(info_or_yaml_or_file: Union[InputDict, str, os.PathLike],
     :param test: only test initialization rather than actually running
     :param override: option dictionary to merge into the input one, overriding settings
        (but with lower precedence than the explicit keyword arguments)
+    :param allow_changes: if true, allow input option changes when resuming or minimizing
     :return: (updated_info, sampler) tuple of options dictionary and Sampler instance,
               or (updated_info, post_results) if using "post" post-processing
     """
@@ -65,25 +67,8 @@ def run(info_or_yaml_or_file: Union[InputDict, str, os.PathLike],
                  "minimize": minimize, "test": test}
         info: InputDict = load_info_overrides(
             info_or_yaml_or_file, override or {}, **flags)
-        if info.get("post"):
-            if info.get("minimize"):  # type: ignore
-                raise ValueError(
-                    "``minimize`` option is incompatible with post-processing.")
-            if isinstance(output, str) or output is False:
-                info["post"]["output"] = output or None
-            return post(info)
-        # Set up output and logging
-        if isinstance(output, str) or output is False:
-            info["output"] = output or None
-        # MARKED FOR DEPRECATION IN v3.2
-        if info.get("debug_file"):  # type: ignore
-            raise LoggedError("'debug_file' has been deprecated. If you want to "
-                              "save the debug output to a file, use 'debug: [filename]'.")
-        # END OF DEPRECATION BLOCK
         logger_setup(info.get("debug"))
         logger_run = get_logger(run.__name__)
-        # 1. Prepare output driver, if requested by defining an output prefix
-        # GetDist needs to know the original sampler, so don't overwrite if minimizer
         try:
             which_sampler = list(info["sampler"])[0]
             if info.get("minimize"):  # type: ignore
@@ -91,10 +76,20 @@ def run(info_or_yaml_or_file: Union[InputDict, str, os.PathLike],
                 if which_sampler.lower() != "minimize":
                     info["sampler"] = {"minimize": None}
                     which_sampler = "minimize"
-        except (KeyError, TypeError):
-            raise LoggedError(
-                logger_run, "You need to specify a sampler using the 'sampler' key "
-                            "as e.g. `sampler: {mcmc: None}.`")
+        except (KeyError, TypeError) as excpt:
+            if not info.get("post"):
+                raise LoggedError(
+                    logger_run,
+                    "You need to specify a sampler using the 'sampler' key "
+                    "as e.g. `sampler: {mcmc: None}.`") from excpt
+        if info.get("post"):
+            if isinstance(output, str) or output is False:
+                info["post"]["output"] = output or None
+            return post(info)
+        # Set up output and logging
+        if isinstance(output, str) or output is False:
+            info["output"] = output or None
+        # 1. Prepare output driver, if requested by defining an output prefix
         infix = "minimize" if which_sampler == "minimize" else None
         with get_output(prefix=info.get("output"), resume=info.get("resume"),
                         force=info.get("force"), infix=infix) as out:
@@ -110,18 +105,14 @@ def run(info_or_yaml_or_file: Union[InputDict, str, os.PathLike],
             # 3. If output requested, check compatibility if existing one, and dump.
             # 3.1 First: model only
             out.check_and_dump_info(info, updated_info, cache_old=True,
+                                    check_compatible=not allow_changes,
                                     ignore_blocks=["sampler"])
-            # 3.2 Then sampler -- 1st get the last sampler mentioned in the updated.yaml
-            # TODO: ideally, using Minimizer would *append* to the sampler block.
-            #       Some code already in place, but not possible at the moment.
-            try:
-                last_sampler = list(updated_info["sampler"])[-1]
-                last_sampler_info = {last_sampler: updated_info["sampler"][last_sampler]}
-            except (KeyError, TypeError):
+            # 3.2 Then sampler -- 1st get the first sampler mentioned in the updated.yaml
+            if not (info_sampler := updated_info.get("sampler")):
                 raise LoggedError(logger_run, "No sampler requested.")
-            sampler_name, sampler_class = get_sampler_name_and_class(last_sampler_info)
-            check_sampler_info(
-                (out.reload_updated_info(use_cache=True) or {}).get("sampler"),
+            sampler_name, sampler_class = get_sampler_name_and_class(info_sampler)
+            updated_info["sampler"] = check_sampler_info(
+                (out.get_updated_info(use_cache=True) or {}).get("sampler"),
                 updated_info["sampler"], is_resuming=out.is_resuming())
             # Dump again, now including sampler info
             out.check_and_dump_info(info, updated_info, check_compatible=False)
@@ -131,7 +122,7 @@ def run(info_or_yaml_or_file: Union[InputDict, str, os.PathLike],
             # 4. Initialize the posterior and the sampler
             with Model(updated_info["params"], updated_info["likelihood"],
                        updated_info.get("prior"), updated_info.get("theory"),
-                       packages_path=info.get(packages_path_input),
+                       packages_path=info.get("packages_path"),
                        timing=updated_info.get("timing"),
                        allow_renames=False,
                        stop_at_error=info.get("stop_at_error", False)) as model:
@@ -140,14 +131,14 @@ def run(info_or_yaml_or_file: Union[InputDict, str, os.PathLike],
                 out.check_and_dump_info(None, updated_info, check_compatible=False)
                 sampler = sampler_class(updated_info["sampler"][sampler_name],
                                         model, out, name=sampler_name,
-                                        packages_path=info.get(packages_path_input))
+                                        packages_path=info.get("packages_path"))
                 # Re-dump updated info, now also containing updates from the sampler
                 updated_info["sampler"][sampler_name] = \
                     recursive_update(updated_info["sampler"][sampler_name],
                                      sampler.info())
                 out.check_and_dump_info(None, updated_info, check_compatible=False)
                 mpi.sync_processes()
-                if info.get("test", False):
+                if info.get("test"):
                     logger_run.info("Test initialization successful! "
                                     "You can probably run now without `--%s`.", "test")
                     return updated_info, sampler
@@ -160,7 +151,7 @@ def run(info_or_yaml_or_file: Union[InputDict, str, os.PathLike],
 def run_script(args=None):
     """Shell script wrapper for :func:`run.run` (including :func:`post.post`)"""
     warn_deprecation()
-    import argparse
+    import argparse  # pylint: disable=import-outside-toplevel
     # kwargs for flags that should be True|None, instead of True|False
     # (needed in order not to mistakenly override input file inside the run() function
     trueNone_kwargs = {"action": "store_true", "default": None}
@@ -188,6 +179,10 @@ def run_script(args=None):
     parser.add_argument("-M", "--minimize",
                         help=("Replaces the sampler in the input and runs a minimization "
                               "process (incompatible with post-processing)."),
+                        **trueNone_kwargs)
+    parser.add_argument("--allow-changes",
+                        help="Allow changing input parameters when resuming "
+                             "or minimizing, skipping consistency checks",
                         **trueNone_kwargs)
     parser.add_argument("--version", action="version", version=get_version())
     parser.add_argument("--no-mpi",

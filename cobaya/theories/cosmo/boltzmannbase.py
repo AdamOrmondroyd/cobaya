@@ -31,7 +31,7 @@ class BoltzmannBase(Theory):
 
         # Dict of named tuples to collect requirements and computation methods
         self.collectors = {}
-        # Additional input parameters to pass to CAMB, and attributes to set_ manually
+        # Additional input parameters (e.g. to pass to setter function, to set as attr...)
         self.extra_args = deepcopy_where_possible(self.extra_args) or {}
         self._must_provide = {}
 
@@ -160,14 +160,9 @@ class BoltzmannBase(Theory):
         # e.g. take maximum of all values of a requested precision parameter
         for k, v in requirements.items():
             # Products and other computations
-            if k == "Cl":
+            if k == "Cl" or k == "lensed_scal_Cl" or k == "unlensed_Cl":
                 current = self._must_provide.get(k, {})
                 v = {cl.lower(): v[cl] for cl in v}  # to lowercase
-                self._must_provide[k] = {
-                    cl.lower(): max(current.get(cl.lower(), 0), v.get(cl, 0))
-                    for cl in set(current).union(v)}
-            elif k == "unlensed_Cl":
-                current = self._must_provide.get(k, {})
                 self._must_provide[k] = {
                     cl.lower(): max(current.get(cl.lower(), 0), v.get(cl, 0))
                     for cl in set(current).union(v)}
@@ -260,8 +255,7 @@ class BoltzmannBase(Theory):
 
         Should be called at initialisation, and at the end of every call to must_provide()
         """
-        common = set(self.input_params).intersection(self.extra_args)
-        if common:
+        if common := set(self.input_params).intersection(self.extra_args):
             raise LoggedError(
                 self.log, "The following parameters appear both as input parameters and "
                           "as extra arguments: %s. Please, remove one of the definitions "
@@ -318,8 +312,8 @@ class BoltzmannBase(Theory):
     @abstract
     def get_Cl(self, ell_factor=False, units="FIRASmuK2"):
         r"""
-        Returns a dictionary of lensed CMB power spectra and the lensing potential ``pp``
-        power spectrum.
+        Returns a dictionary of lensed total CMB power spectra and the
+        lensing potential ``pp`` power spectrum.
 
         Set the units with the keyword ``units=number|'muK2'|'K2'|'FIRASmuK2'|'FIRASK2'``.
         The default is ``FIRASmuK2``, which returns CMB :math:`C_\ell`'s in
@@ -331,13 +325,25 @@ class BoltzmannBase(Theory):
         If ``ell_factor=True`` (default: ``False``), multiplies the spectra by
         :math:`\ell(\ell+1)/(2\pi)` (or by :math:`[\ell(\ell+1)]^2/(2\pi)` in the case of
         the lensing potential ``pp`` spectrum, and :math:`[\ell(\ell+1)]^{3/2}/(2\pi)` for
-        the the cross spectra ``tp`` and ``ep``).
+        the cross spectra ``tp`` and ``ep``).
         """
 
     @abstract
     def get_unlensed_Cl(self, ell_factor=False, units="FIRASmuK2"):
         r"""
         Returns a dictionary of unlensed CMB power spectra.
+
+        For ``units`` options, see :func:`~BoltzmannBase.get_Cl`.
+
+        If ``ell_factor=True`` (default: ``False``), multiplies the spectra by
+        :math:`\ell(\ell+1)/(2\pi)`.
+        """
+
+    @abstract
+    def get_lensed_scal_Cl(self, ell_factor=False, units="FIRASmuK2"):
+        r"""
+        Returns a dictionary of lensed scalar CMB power spectra and the lensing
+        potential ``pp`` power spectrum.
 
         For ``units`` options, see :func:`~BoltzmannBase.get_Cl`.
 
@@ -544,16 +550,16 @@ class BoltzmannBase(Theory):
         """
         return self._get_z_dependent("fsigma8", z)
 
-    def get_auto_covmat(self, params_info, likes_info, random_state=None):
+    def get_auto_covmat(self, params_info, likes_info):
         r"""
         Tries to get match to a database of existing covariance matrix files for the
         current model and data.
 
         ``params_info`` should contain preferably the slow parameters only.
         """
-        from cobaya.cosmo_input import get_best_covmat_ext
-        return get_best_covmat_ext(self.packages_path, params_info, likes_info,
-                                   random_state)
+        from cobaya.cosmo_input import get_best_covmat_ext, get_covmat_package_folders
+        return get_best_covmat_ext(get_covmat_package_folders(self.packages_path),
+                                   params_info, likes_info)
 
 
 class PowerSpectrumInterpolator(RectBivariateSpline):

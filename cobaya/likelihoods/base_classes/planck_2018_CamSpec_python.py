@@ -40,6 +40,7 @@ def range_to_ells(use_range):
                 ranges.append(range(mn, mx + 1))
             else:
                 ranges.append(int(ell_range))
+        # noinspection PyTypeChecker
         return np.concatenate(ranges)
     else:
         return use_range
@@ -54,8 +55,10 @@ class Planck2018CamSpecPython(DataSetLikelihood):
 
     @classmethod
     def get_bibtex(cls):
-        from cobaya.likelihoods.base_classes import Planck2018Clik
-        return Planck2018Clik.get_bibtex()
+        if not (res := super().get_bibtex()):
+            from cobaya.likelihoods.base_classes import Planck2018Clik
+            return Planck2018Clik.get_bibtex()
+        return res
 
     def read_normalized(self, filename, pivot=None):
         # arrays all based at L=0, in L(L+1)/2pi units
@@ -320,9 +323,9 @@ class Planck2018CamSpecPython(DataSetLikelihood):
         dL = np.zeros(n_p)
         ix1 = 0
         ell_offsets = [LS - lmin for LS in self.ell_ranges[:4]]
-        contiguous = not np.any(np.count_nonzero(LS - np.arange(LS[0],
-                                                                LS[-1] + 1, dtype=int))
-                                for LS in self.ell_ranges[:4])
+        contiguous = not any(np.count_nonzero(LS - np.arange(LS[0],
+                                                             LS[-1] + 1, dtype=int))
+                             for LS in self.ell_ranges[:4])
         for i, (cal, LS, n) in enumerate(zip(cals[:4], ell_offsets, self.used_sizes[:4])):
             dL[LS] += d[ix1:ix1 + n] / cal
             ix = 0

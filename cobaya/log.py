@@ -12,8 +12,8 @@ import sys
 import logging
 import platform
 import traceback
-from copy import deepcopy
 import functools
+import numpy as np
 from random import shuffle, choice
 
 # Local
@@ -194,14 +194,15 @@ def exception_handler(exception_type, exception_instance, trace_back):
         mpi.abort_if_mpi()
 
 
-def logger_setup(debug=None, debug_file=None):
+def logger_setup(debug=None):
     """
     Configuring the root logger, for its children to inherit level, format and handlers.
 
     Level: if debug=True, take DEBUG. If numerical, use ""logging""'s corresponding level.
-    If string, set debug level and use if as ``debug_file`` (unless specified separately).
+    If string, set debug level and use it as output file.
     Default: INFO
     """
+    debug_file = None
     if debug is True or os.getenv('COBAYA_DEBUG'):
         level = logging.DEBUG
     elif debug in (False, None):
@@ -210,7 +211,7 @@ def logger_setup(debug=None, debug_file=None):
         level = debug
     elif isinstance(debug, str):
         level = logging.DEBUG
-        debug_file = debug_file or debug
+        debug_file = debug
     else:
         raise ValueError(
             f"Bad value for debug: {debug}. Set to bool|str(file)|int(level).")
@@ -236,7 +237,7 @@ def logger_setup(debug=None, debug_file=None):
     handle_stdout.setLevel(level)
     handle_stdout.setFormatter(MyFormatter())
     # log file? Create and reduce stdout level to INFO
-    if debug_file:
+    if debug_file is not None:
         file_stdout = logging.FileHandler(debug_file, mode="w")
         file_stdout.setLevel(level)
         handle_stdout.setLevel(logging.INFO)
@@ -276,13 +277,9 @@ class HasLogger:
         self.log = logging.getLogger(add_color_to_name(name))
 
     # Copying and pickling
-    def __deepcopy__(self, memo=None):
-        new = (lambda cls: cls.__new__(cls))(self.__class__)
-        new.__dict__ = {k: deepcopy(v) for k, v in self.__dict__.items() if k != "log"}
-        return new
-
     def __getstate__(self):
-        return deepcopy(self).__dict__
+        """Returns the current state, removing the logger (not picklable)."""
+        return {k: v for k, v in self.__dict__.items() if k != "log"}
 
     def __setstate__(self, d):
         self.__dict__ = d
@@ -305,3 +302,9 @@ class HasLogger:
     @mpi.root_only
     def mpi_debug(self, msg, *args, **kwargs):
         self.log.debug(msg, *args, **kwargs)
+
+    def param_dict_debug(self, msg, dic: dict):
+        """Removes numpy2 np.float64 for consistent output"""
+        if self.log.getEffectiveLevel() <= logging.DEBUG:
+            self.log.debug(msg, {k: float(v) if isinstance(v, np.number) else v
+                                 for k, v in dic.items()})

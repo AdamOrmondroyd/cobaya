@@ -1,3 +1,9 @@
+__author__ = "Jesus Torrado and Antony Lewis"
+__version__ = "3.5.5"
+__obsolete__ = False
+__year__ = "2025"
+__url__ = "https://cobaya.readthedocs.io"
+
 import sys
 from cobaya.likelihood import Likelihood
 from cobaya.theory import Theory
@@ -6,15 +12,9 @@ from cobaya.model import get_model
 from cobaya.typing import InputDict, PostDict
 from cobaya.log import LoggedError
 from cobaya.post import post
-
+from cobaya.output import load_samples
+from cobaya._version import __version__
 
 if sys.version_info < (3, 8):
     print('Cobaya requires Python 3.8+, please upgrade.')
     sys.exit(1)
-
-
-__author__ = "Jesus Torrado and Antony Lewis"
-__version__ = "3.3.2"
-__obsolete__ = False
-__year__ = "2023"
-__url__ = "https://cobaya.readthedocs.io"

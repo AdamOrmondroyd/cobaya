@@ -7,7 +7,7 @@
 
 :Documentation: `Documentation at Readthedocs <https://cobaya.readthedocs.org>`_
 
-:Licence: `LGPL <https://www.gnu.org/licenses/lgpl-3.0.en.html>`_ + mandatory bug reporting asap + mandatory `arXiv'ing <https://arxiv.org>`_ of publications using it (see `LICENCE.txt <https://github.com/CobayaSampler/cobaya/blob/master/LICENCE.txt>`_ for exceptions). The documentation is licensed under the `GFDL <https://www.gnu.org/licenses/fdl-1.3.en.html>`_.
+:Licence: `LGPL <https://www.gnu.org/licenses/lgpl-3.0.en.html>`_ + bug reporting asap + `arXiv'ing <https://arxiv.org>`_ of publications using it (see `LICENCE.txt <https://github.com/CobayaSampler/cobaya/blob/master/LICENCE.txt>`_ for details and exceptions). The documentation is licensed under the `GFDL <https://www.gnu.org/licenses/fdl-1.3.en.html>`_.
 
 :E-mail list: https://cosmocoffee.info/cobaya/ – **sign up for important bugs and release announcements!**
 
@@ -15,8 +15,8 @@
 
 :Installation: ``pip install cobaya --upgrade`` (see the `installation instructions <https://cobaya.readthedocs.io/en/latest/installation.html>`_; in general do *not* clone)
 
-.. image:: https://travis-ci.com/CobayaSampler/cobaya.svg?branch=master
-   :target: https://app.travis-ci.com/CobayaSampler/cobaya
+.. image:: https://github.com/CobayaSampler/cobaya/actions/workflows/tests.yml/badge.svg?branch=master
+   :target: https://github.com/CobayaSampler/cobaya/actions
 .. image:: https://readthedocs.org/projects/cobaya/badge/?version=latest
    :target: https://cobaya.readthedocs.org/en/latest
 .. image:: https://codecov.io/gh/CobayaSampler/cobaya/branch/master/graphs/badge.svg

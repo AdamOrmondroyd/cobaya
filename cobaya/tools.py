@@ -16,6 +16,7 @@ import re
 import numbers
 import pandas as pd
 import numpy as np
+import scipy.stats as stats
 from itertools import chain
 from importlib import import_module
 from copy import deepcopy
@@ -27,6 +28,7 @@ from types import ModuleType
 from inspect import cleandoc, getfullargspec
 from ast import parse
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 
 # Local
 from cobaya.conventions import subfolders, kinds, packages_path_config_file, \
@@ -110,6 +112,19 @@ class PythonPath:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.path[:] = self.old_path
+
+
+@contextmanager
+def working_directory(path):
+    if path:
+        original_cwd = os.getcwd()
+        os.chdir(path)
+        try:
+            yield
+        finally:
+            os.chdir(original_cwd)
+    else:
+        yield
 
 
 def check_module_path(module, path):
@@ -291,7 +306,6 @@ def get_external_function(string_or_function, name=None):
     if isinstance(string_or_function, str):
         try:
             scope = globals()
-            import scipy.stats as stats  # provide default scope for eval
             scope['stats'] = stats
             scope['np'] = np
             string_or_function = replace_optimizations(string_or_function)
@@ -442,6 +456,19 @@ def read_dnumber(n: Any, dim: int):
     return NumberWithUnits(n, "d", dtype=int, scale=dim).value
 
 
+def truncate_to_end_line(file_name):
+    with open(file_name, "r+b") as inp:
+        # Find the last complete line
+        inp.seek(0, 2)  # Go to the end of the file
+        pos = inp.tell() - 1
+        while pos > 0 and inp.read(1) != b"\n":
+            pos -= 1
+            inp.seek(pos, 0)
+        if pos > 0:
+            inp.seek(pos + 1, 0)
+            inp.truncate()
+
+
 def load_DataFrame(file_name, skip=0, root_file_name=None):
     """
     Loads a `pandas.DataFrame` from a text file
@@ -478,7 +505,17 @@ def load_DataFrame(file_name, skip=0, root_file_name=None):
             inp, sep=" ", header=None, names=cols, comment="#", skipinitialspace=True,
             skiprows=skip, index_col=False)
 
-        return data
+    if not data.empty:
+        # Check if the last row contains any NaNs
+        if data.iloc[-1].isna().any():
+            log.warning("Last row of %s is incomplete or contains NaNs", file_name)
+            # If the second-to-last row exists and doesn't contain NaNs,
+            # delete the last row assuming this was due to crash on write
+            if len(data) > 1 and not data.iloc[-2].isna().any():
+                data = data.iloc[:-1]
+                log.info(f"Saving {file_name} deleting last (in)complete line")
+                truncate_to_end_line(file_name)
+    return data
 
 
 def prepare_comment(comment):
@@ -495,97 +532,114 @@ def is_valid_variable_name(name):
         return False
 
 
-def get_scipy_1d_pdf(info):
-    """Generates 1d priors from scipy's pdf's from input info."""
-    param = list(info)[0]
-    info2 = deepcopy(info[param])
-    if not info2:
-        raise LoggedError(log, "No specific prior info given for "
-                               "sampled parameter '%s'." % param)
-    # If list of 2 numbers, it's a uniform prior
-    elif isinstance(info2, Sequence) and len(info2) == 2 and all(
-            isinstance(n, numbers.Real) for n in info2):
-        info2 = {"min": info2[0], "max": info2[1]}
-    elif not isinstance(info2, Mapping):
-        raise LoggedError(log, "Prior format not recognized for %s: %r "
-                               "Check documentation for prior specification.",
-                          param, info2)
-    # What distribution?
-    try:
-        dist = info2.pop("dist").lower()
-    # Not specified: uniform by default
-    except KeyError:
-        dist = "uniform"
-    # Number: uniform with 0 width
-    except AttributeError:
-        dist = "uniform"
-        info2 = {"loc": info2, "scale": 0}
+def get_scipy_1d_pdf(definition: Union[float, Sequence, Dict]
+                     ) -> stats.distributions.rv_frozen:
+    """
+    Generates a 1d prior from scipy's pdf's using the given arguments.
+
+    Parameters
+    ----------
+    definition : float or tuple or dict
+        A prior specification, that is, a length-2 tuple specifying a range for a uniform
+        prior, or a dictionary that may specify the scipy distribution as ``dist``(default
+        if not present: ``uniform``) and the arguments to be passed to that scipy
+        distribution. ``loc`` and ``scale`` can alternatively be passed as a ``min`` and
+        ``max`` range. A single number for a delta-like prior is also possible.
+
+    Returns
+    -------
+    stats.rv_frozen
+        An initialized scipy.stats distribution instance with the given parameters.
+
+    Raises
+    ------
+    ValueError
+        If the given arguments cannot produce a scipy dist.
+    """
+    if not definition:
+        raise ValueError(
+            "Please pass *either* a range [min, max] as arguments, or a dictionary."
+        )
+    # If list of 2 numbers, it's a uniform prior; if a single number, a delta prior
+    if isinstance(definition, numbers.Real):
+        kwargs = {"dist": "uniform", "loc": definition, "scale": 0}
+    elif isinstance(definition, Sequence) and len(definition) == 2 and \
+            all(isinstance(n, numbers.Real) for n in definition):
+        kwargs = {"dist": "uniform", "min": definition[0], "max": definition[1]}
+    elif isinstance(definition, Dict):
+        kwargs = deepcopy(definition)
+    else:
+        raise ValueError(
+            f"Invalid type {type(definition)} for prior definition: {definition}"
+        )
+    # Recover (loc, scale) from (min, max)
+    # For coherence with scipy.stats, defaults are (min, max) = (0, 1)
+    if "min" in kwargs or "max" in kwargs:
+        if "loc" in kwargs or "scale" in kwargs:
+            raise ValueError(
+                "You cannot use the 'loc/scale' convention and the 'min/max' "
+                "convention at the same time. Either use one or the other."
+            )
+        minmaxvalues = {"min": 0.0, "max": 1.0}
+        for bound, default in minmaxvalues.items():
+            value = kwargs.pop(bound, default)
+            try:
+                minmaxvalues[bound] = float(value)
+            except (TypeError, ValueError) as excpt:
+                raise ValueError(
+                    f"Invalid value {bound}: {value} (must be a number)."
+                ) from excpt
+        kwargs["loc"] = minmaxvalues["min"]
+        kwargs["scale"] = minmaxvalues["max"] - minmaxvalues["min"]
+    if kwargs.get("scale", 1) < 0:
+        raise ValueError(
+            "Invalid negative range or scale. "
+            f"Prior definition was {definition}.")
+    # Check for improper priors
+    if not np.all(np.isfinite([kwargs.get("loc", 0), kwargs.get("scale", 1)])):
+        raise ValueError("Improper prior: infinite/undefined range or scale.")
+    # Get distribution from scipy
+    dist = kwargs.pop("dist", "uniform")
+    if not isinstance(dist, str):
+        raise ValueError(f"If present 'dist' must be a string. Got {type(dist)}.")
     try:
         pdf_dist = getattr(import_module("scipy.stats", dist), dist)
-    except AttributeError:
-        raise LoggedError(
-            log, "Error creating the prior for parameter '%s': "
-                 "The distribution '%s' is unknown to 'scipy.stats'. "
-                 "Check the list of allowed possibilities in the docs.", param, dist)
-    # Recover loc,scale from min,max
-    # For coherence with scipy.stats, defaults are min,max=0,1
-    if "min" in info2 or "max" in info2:
-        if "loc" in info2 or "scale" in info2:
-            raise LoggedError(
-                log, "You cannot use the 'loc/scale' convention and the 'min/max' "
-                     "convention at the same time. Either use one or the other.")
-        minmaxvalues = {"min": 0., "max": 1.}
-        for limit in minmaxvalues:
-            value = info2.pop(limit, minmaxvalues[limit])
-            try:
-                minmaxvalues[limit] = float(value)
-            except (TypeError, ValueError):
-                raise LoggedError(
-                    log, "Invalid value '%s: %r' in param '%s' (it must be a number)",
-                    limit, value, param)
-        if minmaxvalues["max"] < minmaxvalues["min"]:
-            raise LoggedError(
-                log, "Minimum larger than maximum: '%s, %s' for param '%s'",
-                minmaxvalues["min"], minmaxvalues["max"], param)
-        info2["loc"] = minmaxvalues["min"]
-        info2["scale"] = minmaxvalues["max"] - minmaxvalues["min"]
-
-    for x in ["loc", "scale", "min", "max"]:
-        if isinstance(info2.get(x), str):
-            raise LoggedError(log, "%s should be a number (got '%s')", x, info2.get(x))
-    # Check for improper priors
-    if not np.all(np.isfinite([info2.get(x, 0) for x in ["loc", "scale", "min", "max"]])):
-        raise LoggedError(log, "Improper prior for parameter '%s'.", param)
+    except AttributeError as attr_excpt:
+        raise ValueError(
+            f"'{dist}' is not a valid scipy.stats distribution."
+        ) from attr_excpt
     # Generate and return the frozen distribution
     try:
-        return pdf_dist(**info2)
-    except TypeError as tp:
-        raise LoggedError(
-            log,
-            "'scipy.stats' produced an error: <<%r>>. "
-            "This probably means that the distribution '%s' "
-            "does not recognize the parameter mentioned in the 'scipy' error above.",
-            str(tp), dist)
+        return pdf_dist(**kwargs)
+    except TypeError as tp_excpt:
+        raise ValueError(
+            f"Error when initializing scipy.stats.{dist}: <<{tp_excpt}>>. "
+            "This probably means that the distribution {dist} "
+            "does not recognize the parameter mentioned in the 'scipy' error above."
+        ) from tp_excpt
 
 
-def _fast_norm_logpdf(self, x):
+def _fast_norm_logpdf(norm_dist):
     """WARNING: logpdf(nan) = -inf"""
-    if not hasattr(self, "_cobaya_mlogscale"):
-        self._cobaya_mlogscale = -np.log(self.kwds["scale"])
-    x_ = (np.array(x) - self.kwds["loc"]) / self.kwds["scale"]
-    # noinspection PyProtectedMember
-    return self.dist._logpdf(x_) + self._cobaya_mlogscale
+    scale = norm_dist.kwds["scale"]
+    m_log_scale = -np.log(scale) - np.log(2 * np.pi) / 2
+    loc = norm_dist.kwds["loc"]
+
+    def fast_logpdf(x):
+        return m_log_scale - ((x - loc) / scale) ** 2 / 2
+
+    return fast_logpdf
 
 
 def _KL_norm(m1, S1, m2, S2):
-    """Performs the Guassian KL computation, without input testing."""
+    """Performs the Gaussian KL computation, without input testing."""
     dim = S1.shape[0]
     S2inv = np.linalg.inv(S2)
     return 0.5 * (np.trace(S2inv.dot(S1)) + (m1 - m2).dot(S2inv).dot(m1 - m2) -
-                  dim + np.log(np.linalg.det(S2) / np.linalg.det(S1)))
+                  dim + np.linalg.slogdet(S2)[1] - np.linalg.slogdet(S1)[1])
 
 
-def KL_norm(m1=None, S1=np.array([]), m2=None, S2=np.array([]), symmetric=False):
+def KL_norm(m1=None, S1=(), m2=None, S2=(), symmetric=False):
     """Kullback-Leibler divergence between 2 gaussians."""
     S1, S2 = [np.atleast_2d(S) for S in [S1, S2]]
     assert S1.shape[0], "Must give at least S1"
@@ -602,37 +656,34 @@ def KL_norm(m1=None, S1=np.array([]), m2=None, S2=np.array([]), symmetric=False)
     return _KL_norm(m1, S1, m2, S2)
 
 
-def choleskyL(M, return_scale_free=False):
+def choleskyL_corr(M):
     r"""
     Gets the Cholesky lower triangular matrix :math:`L` (defined as :math:`M=LL^T`)
-    of a given matrix ``M``.
+    for the matrix ``M``, in the form :math:`L = S L^\prime` where S is diagonal.
 
     Can be used to create an affine transformation that decorrelates a sample
-    :math:`x=\{x_i\}` as :math:`y=Lx`, where :math:`L` is extracted from the
-    covariance of the sample.
+    :math:`x=\{x_i\}` with covariance M, as :math:`x=Ly`,
+    where :math:`L` is extracted from M and y has identity covariance.
 
-    If ``return_scale_free=True`` (default: ``False``), returns a tuple of
-    a matrix :math:`S` containing the square roots of the diagonal of the input matrix
-    (the standard deviations, if a covariance is given), and the scale-free
-    :math:`L^\prime=S^{-1}L`.
+    Returns a tuple of a matrix :math:`S` containing the square roots of the diagonal
+    of the input matrix (the standard deviations, if a covariance is given),
+    and the scale-free :math:`L^\prime=S^{-1}L`.
+    (could just use Cholesky directly for proposal)
     """
     std_diag, corr = cov_to_std_and_corr(M)
-    Lprime = np.linalg.cholesky(corr)
-    if return_scale_free:
-        return std_diag, Lprime
-    else:
-        return np.linalg.inv(std_diag).dot(Lprime)
+    return np.diag(std_diag), np.linalg.cholesky(corr)
 
 
 def cov_to_std_and_corr(cov):
     """
-    Gets the standard deviations (as a diagonal matrix)
+    Gets the standard deviations (as a 1D array
     and the correlation matrix of a covariance matrix.
     """
-    std_diag = np.diag(np.sqrt(np.diag(cov)))
-    invstd_diag = np.linalg.inv(std_diag)
-    corr = invstd_diag.dot(cov).dot(invstd_diag)
-    return std_diag, corr
+    std = np.sqrt(np.diag(cov))
+    inv_std = 1 / std
+    corr = inv_std[:, np.newaxis] * cov * inv_std[np.newaxis, :]
+    np.fill_diagonal(corr, 1.0)
+    return std, corr
 
 
 def are_different_params_lists(list_A, list_B, name_A="A", name_B="B"):
@@ -941,7 +992,7 @@ def load_config_file():
     from cobaya.yaml import yaml_load_file
     try:
         return yaml_load_file(
-            os.path.join(get_config_path(), packages_path_config_file))
+            os.path.join(get_config_path(), packages_path_config_file)) or {}
     except:
         return {}
 
@@ -1008,10 +1059,7 @@ def resolve_packages_path(infos=None):
                  "Cannot resolve a unique one to use. "
                  "Maybe specify one via a command line argument '-%s [...]'?",
             packages_path_arg[0])
-    path_env = os.environ.get(packages_path_env)
-    if path_env:
-        return path_env
-    return load_packages_path_from_config_file()
+    return os.environ.get(packages_path_env) or load_packages_path_from_config_file()
 
 
 def sort_cosmetic(info):

@@ -58,7 +58,6 @@ class LikelihoodInterface:
         :return:  log likelihood from the current state as a scalar
         """
         value = self.current_state["logp"]
-        # Unfortunately, numpy arrays are not derived from Sequence, so the test is ugly
         if hasattr(value, "__len__"):
             value = value[0]
         return value
@@ -96,17 +95,6 @@ class Likelihood(Theory, LikelihoodInterface):
                          packages_path=packages_path, initialize=initialize,
                          standalone=standalone)
 
-    # MARKED FOR DEPRECATION IN v3.3
-    @property
-    def theory(self):
-        self.log.warning(
-            "The 'theory' attribute of likelihoods will be deprecated soon. "
-            "Please use the equivalent 'provider' attribute instead."
-        )
-        # BEHAVIOUR TO BE REPLACED BY AN ERROR
-        return self.provider
-        # END OF DEPRECATION BLOCK
-
     def logp(self, **params_values):
         """
         Computes and returns the log likelihood value.
@@ -138,7 +126,7 @@ class Likelihood(Theory, LikelihoodInterface):
         derived: Optional[ParamValuesDict] = {} if want_derived else None
         state["logp"] = -np.inf  # in case of exception
         state["logp"] = self.logp(_derived=derived, **params_values_dict)
-        self.log.debug("Computed log-likelihood = %r", state["logp"])
+        self.log.debug("Computed log-likelihood = %s", state["logp"])
         if derived is not None:
             state["derived"] = derived.copy()
 

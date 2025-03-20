@@ -90,7 +90,7 @@ From a Python interpreter
 
 You can use **cobaya** interactively within a Python interpreter or a Jupyter notebook. This will allow you to create input and process products *programatically*, making it easier to streamline a complicated analyses.
 
-The actual input information of **cobaya** are Python *dictionaries* (a ``yaml`` file is just a representation of a dictionary). We can easily define the same information above as a dictionary:
+The actual input information of **cobaya**  is provided as Python *dictionaries* (a ``yaml`` file is just a representation of a dictionary). We can easily define the same information above as a dictionary:
 
 .. literalinclude:: ./src_examples/quickstart/create_info.py
    :language: python
@@ -151,7 +151,7 @@ Output:
 .. image:: img/example_quickstart_plot.png
    :align: center
 
-Alternatively, if we had chosen to write the output as in the shell case by adding an ``output`` prefix, we could have loaded the chain in GetDist from the hard drive:
+Alternatively, if we had chosen to write the output as in the shell case by adding an ``output`` prefix, we could have loaded the chain in GetDist format from the hard drive:
 
 .. literalinclude:: ./src_examples/quickstart/analyze_alt.py
    :language: python
