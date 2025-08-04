@@ -16,7 +16,6 @@ from tempfile import gettempdir
 import re
 import warnings
 import numpy as np
-from mpi4py import MPI
 
 # Local
 from cobaya.tools import read_dnumber, get_external_function, find_with_regexp, \
@@ -128,7 +127,7 @@ class polychord(Sampler):
             self.clusters_folder = self.get_clusters_dir(self.output)
             self.output.create_folder(self.clusters_folder)
         self.mpi_info("Storing raw PolyChord output in '%s'.", self.base_dir)
-        
+
         self.forced_identifiability_transform = getattr(load_external_module("pypolychord.priors"), "forced_indentifiability_transform")
 
         def timing_prior(cube):
@@ -154,16 +153,8 @@ class polychord(Sampler):
                         ordered_cube[idx_to_sort] = self.forced_identifiability_transform(ordered_cube[idx_to_sort])
             for i, name in enumerate(names):
                 theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
-
-            # # save parameters to text rile
-            # comm = MPI.COMM_WORLD
-            # rank = comm.Get_rank()
-            # param_dict = {list(self.model.parameterization.sampled_params())[j]: theta[j] for j in range(len(theta))}
-            # with open(f"/home/ano23/rds/hpc-work/simultaneous/mpi_files/{rank}.txt", "a+") as f:
-            #     f.write(str(param_dict))
-            #     f.write("\n")
-
             return theta
+
         self.prior = timing_prior
         self.model.prior.prior_transform = timing_prior
         # Exploiting the speed hierarchy
@@ -290,12 +281,11 @@ class polychord(Sampler):
             derived = list(derived) + list(result.logpriors) + list(loglikes)
             return max(loglikes.sum(), self.pc_settings.logzero), derived
 
-
         def prior(cube):
             theta = np.empty_like(cube)
             ordered_cube = np.array(cube)[self.ordering]
             idx_to_sort = []
-            
+
             names = list(self.model.parameterization.sampled_params())
             if self.sorted_prior:
                 # check if only one list has been given, as expect a list of lists
@@ -314,20 +304,6 @@ class polychord(Sampler):
             for i, name in enumerate(names):
                 theta[i] = self.model.prior.pdf[i].ppf(ordered_cube[i])
 
-            # # save parameters to text rile
-            # comm = MPI.COMM_WORLD
-            # rank = comm.Get_rank()
-            # param_dict = {list(self.model.parameterization.sampled_params())[j]: theta[j] for j in range(len(theta))}
-            # with open(f"/home/ano23/rds/hpc-work/simultaneous/mpi_files/{rank}.txt", "a+") as f:
-            #     f.write(str(param_dict))
-            #     f.write("\n")
-
-            return theta
-
-            param_dict = {list(self.model.parameterization.sampled_params())[j]: theta[j] for j in range(len(theta))}
-            with open(f"/home/ano23/rds/hpc-work/external_wa/mpi_files/{rank}.txt", "a+") as f:
-                f.write(str(param_dict))
-                f.write("\n")
             return theta
 
         if is_main_process():
@@ -338,7 +314,7 @@ class polychord(Sampler):
         custom_cluster_args = {}
         if self.custom_cluster:
             custom_cluster_args["cluster"] = self.custom_cluster
-        
+
         self.pc.run_polychord(loglikelihood, self.nDims, self.nDerived, self.pc_settings,
                               prior, self.dumper, **custom_cluster_args)
         self.process_raw_output()
